@@ -1,7 +1,7 @@
+import { routes } from '../routes.js'
+
 const navItems = [
-  { label: 'Home', href: '#/', page: 'home' },
-  { label: 'Course Expectation', href: '#/course-expectation', page: 'course-expectation' },
-  { label: 'Prelim', disabled: true },
+  ...Object.entries(routes).map(([page, route]) => ({ ...route, page, href: route.hash })),
   { label: 'Midterm', disabled: true },
   { label: 'Finals', disabled: true },
 ]

@@ -3,23 +3,25 @@ import Footer from './components/Footer.jsx'
 import Header from './components/Header.jsx'
 import CourseExpectationPage from './pages/CourseExpectationPage.jsx'
 import HomePage from './pages/HomePage.jsx'
+import PrelimPage from './pages/PrelimPage.jsx'
+import { getPageFromHash, routes } from './routes.js'
 
-function getPageFromHash() {
-  return window.location.hash === '#/course-expectation' ? 'course-expectation' : 'home'
+const pageComponents = {
+  home: HomePage,
+  'course-expectation': CourseExpectationPage,
+  prelim: PrelimPage,
 }
 
 function App() {
-  const [currentPage, setCurrentPage] = useState(getPageFromHash)
+  const [currentPage, setCurrentPage] = useState(() => getPageFromHash(window.location.hash))
 
   useEffect(() => {
     const handleRouteChange = () => {
-      const nextPage = getPageFromHash()
+      const nextPage = getPageFromHash(window.location.hash)
       const sectionId = window.location.hash.slice(1)
 
       setCurrentPage(nextPage)
-      document.title = nextPage === 'course-expectation'
-        ? 'Course Expectation | Juan Miguel Santos'
-        : 'Juan Miguel Santos | E-Portfolio'
+      document.title = routes[nextPage].title
 
       requestAnimationFrame(() => {
         const section = nextPage === 'home' && ['about', 'toolbox'].includes(sectionId)
@@ -39,11 +41,13 @@ function App() {
     return () => window.removeEventListener('hashchange', handleRouteChange)
   }, [])
 
+  const PageComponent = pageComponents[currentPage]
+
   return (
     <div className="site-shell">
       <Header currentPage={currentPage} />
       <main>
-        {currentPage === 'course-expectation' ? <CourseExpectationPage /> : <HomePage />}
+        <PageComponent />
       </main>
       <Footer />
     </div>
