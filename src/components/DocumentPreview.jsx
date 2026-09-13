@@ -1,4 +1,16 @@
-function DocumentPreview({ title, filename, meta, previewPath, filePath, fileLabel, isSpreadsheet = false }) {
+function DocumentPreview({
+  title,
+  filename,
+  meta,
+  previewPath,
+  filePath,
+  fileLabel,
+  typeLabel,
+  externalUrl,
+  externalLabel,
+  downloadFile = false,
+  isSpreadsheet = false,
+}) {
   const basePath = import.meta.env.BASE_URL
   const previewUrl = `${basePath}${previewPath}`
   const fileUrl = `${basePath}${filePath}`
@@ -11,7 +23,7 @@ function DocumentPreview({ title, filename, meta, previewPath, filePath, fileLab
           <h3>{title}</h3>
           <p className="document-filename">{filename}</p>
         </div>
-        <span aria-hidden="true">{isSpreadsheet ? 'XLSX' : 'PDF'}</span>
+        <span aria-hidden="true">{typeLabel ?? (isSpreadsheet ? 'XLSX' : 'PDF')}</span>
       </div>
 
       <div className={`document-viewer${isSpreadsheet ? ' is-spreadsheet' : ''}`}>
@@ -22,7 +34,17 @@ function DocumentPreview({ title, filename, meta, previewPath, filePath, fileLab
         <a href={previewUrl} target="_blank" rel="noreferrer">
           Open full preview <span aria-hidden="true">↗</span>
         </a>
-        <a href={fileUrl} target="_blank" rel="noreferrer" download={isSpreadsheet || undefined}>
+        {externalUrl && (
+          <a href={externalUrl} target="_blank" rel="noreferrer">
+            {externalLabel} <span aria-hidden="true">↗</span>
+          </a>
+        )}
+        <a
+          href={fileUrl}
+          target="_blank"
+          rel="noreferrer"
+          download={isSpreadsheet || downloadFile || undefined}
+        >
           {fileLabel} <span aria-hidden="true">{isSpreadsheet ? '↓' : '↗'}</span>
         </a>
       </div>

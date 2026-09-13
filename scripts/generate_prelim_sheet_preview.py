@@ -1,3 +1,4 @@
+import argparse
 from html import escape
 from pathlib import Path
 
@@ -6,8 +7,19 @@ from openpyxl.utils import get_column_letter, range_boundaries
 
 
 ROOT = Path(__file__).resolve().parents[1]
-WORKBOOK_PATH = ROOT / "public" / "documents" / "prelim" / "pt-p1-workbook.xlsx"
-OUTPUT_PATH = ROOT / "public" / "documents" / "prelim" / "pt-p1-workbook-preview.html"
+
+parser = argparse.ArgumentParser(description="Generate a read-only HTML preview from an Excel workbook.")
+parser.add_argument("input", nargs="?", default="public/documents/prelim/pt-p1-workbook.xlsx")
+parser.add_argument("output", nargs="?", default="public/documents/prelim/pt-p1-workbook-preview.html")
+parser.add_argument("--title", default="PT-P1 Workbook Preview")
+parser.add_argument("--table-label")
+args = parser.parse_args()
+
+WORKBOOK_PATH = ROOT / args.input
+OUTPUT_PATH = ROOT / args.output
+table_label = args.table_label or (
+    "Exercise PT-P1 workbook" if WORKBOOK_PATH.name == "pt-p1-workbook.xlsx" else args.title
+)
 
 
 def display_value(cell):
@@ -63,7 +75,7 @@ html = f"""<!doctype html>
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PT-P1 Workbook Preview</title>
+    <title>{escape(args.title)}</title>
     <style>
       :root {{ color-scheme: dark; font-family: Arial, sans-serif; }}
       * {{ box-sizing: border-box; }}
@@ -80,7 +92,7 @@ html = f"""<!doctype html>
     </style>
   </head>
   <body>
-    <table aria-label="Exercise PT-P1 workbook data">
+    <table aria-label="{escape(table_label)} data">
       <thead><tr><th aria-label="Row number"></th>{column_headers}</tr></thead>
       <tbody>{''.join(rows)}</tbody>
     </table>

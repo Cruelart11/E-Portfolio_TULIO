@@ -1,0 +1,371 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PT-P2 - Neural Network Training and Testing (HyperParameters)</title>
+    <style>
+      :root { color-scheme: dark; font-family: Arial, sans-serif; }
+      * { box-sizing: border-box; }
+      body { max-width: 980px; margin: 0 auto; padding: 24px; color: #e6edf3; background: #0d1117; }
+      .preview-header { margin-bottom: 20px; padding: 18px; border: 1px solid #30363d; border-radius: 10px; background: #161b22; }
+      .preview-header p, .cell-label { margin: 0; color: #8b98ac; font: 12px/18px monospace; }
+      .preview-header h1 { margin: 6px 0 0; font-size: 24px; line-height: 1.25; }
+      .cell { margin: 0 0 14px; padding: 18px; border: 1px solid #30363d; border-radius: 10px; background: #10151d; }
+      .markdown-cell h2, .markdown-cell h3, .markdown-cell h4 { margin: 0 0 12px; color: #7ee787; line-height: 1.3; }
+      .markdown-cell h2 { font-size: 22px; }
+      .markdown-cell h3 { font-size: 18px; }
+      .markdown-cell h4 { font-size: 16px; }
+      .markdown-cell p, .markdown-cell li { color: #c9d1d9; font-size: 14px; line-height: 1.65; }
+      .markdown-cell p { margin: 0; }
+      .markdown-cell p + p, .markdown-cell ul + p, .markdown-cell p + ul { margin-top: 12px; }
+      .markdown-cell code { padding: 2px 5px; border-radius: 4px; color: #58a6ff; background: #0a0e14; font: 12px/1.5 monospace; }
+      a { color: #58a6ff; }
+      pre { overflow: auto; margin: 8px 0 0; padding: 14px; border-radius: 7px; color: #e6edf3; background: #0a0e14; font: 12px/1.55 monospace; white-space: pre; }
+      .output { margin-top: 10px; border-left: 3px solid #58a6ff; white-space: pre-wrap; }
+      .output-image { display: block; max-width: 100%; margin-top: 10px; border-radius: 6px; }
+      @media (max-width: 600px) { body { padding: 12px; } .cell, .preview-header { padding: 14px; } }
+    </style>
+  </head>
+  <body>
+    <header class="preview-header">
+      <p>Read-only notebook preview · 83 cells</p>
+      <h1>PT-P2 - Neural Network Training and Testing (HyperParameters)</h1>
+    </header>
+    <main><section class="cell markdown-cell"><h2>PT-P2-Neural Network Training Exercise</h2></section><section class="cell code-cell"><p class="cell-label">Code cell 1</p><pre><code>from google.colab import drive
+drive.mount(&#x27;/content/drive&#x27;)
+
+
+import pandas as pd
+import numpy as np
+import tensorflow as tf
+
+from tensorflow.keras.callbacks import EarlyStopping #Early Stopping feature
+
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Embedding, GlobalAveragePooling1D, Dense, Dropout
+from tensorflow.keras.optimizers import Adam, SGD
+
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import f1_score, accuracy_score, precision_score, recall_score
+
+from collections import Counter
+
+import matplotlib.pyplot as plt
+
+# Set random seeds for reproducibility
+np.random.seed(42)
+tf.random.set_seed(42)</code></pre></section><section class="cell markdown-cell"><p>This code cell <strong>prepares the main tools and settings needed for the neural network experiments</strong>. It begins by connecting Google Colab to my Google Drive through <code>drive.mount(&#x27;/content/drive&#x27;)</code>, which allows the notebook to access the dataset files stored there.</p><p>The next group of imports provides the libraries used throughout the exercise. <code>pandas</code> is used for loading and handling the CSV dataset, <code>numpy</code> supports numerical arrays and data processing, while <code>tensorflow</code> provides the framework for building and training the neural network. From Keras, <code>Sequential</code> is used to create the model layer by layer, while <code>Embedding</code>, <code>GlobalAveragePooling1D</code>, <code>Dense</code>, and <code>Dropout</code> define the architecture. The <code>Adam</code> and <code>SGD</code> optimizers are included so different optimization settings can be tested during the experiments.</p><p>I also imported <code>EarlyStopping</code>, which became useful during the custom experiments because it allows training to stop when <code>val_loss</code> no longer improves. From Scikit-learn, <code>train_test_split()</code> is used to divide the dataset into training, validation, and testing sets. The functions <code>f1_score()</code>, <code>accuracy_score()</code>, <code>precision_score()</code>, and <code>recall_score()</code> provide the evaluation metrics used to measure the model&#x27;s performance. <code>Counter</code> is later used when building the vocabulary, while <code>matplotlib.pyplot</code> is used to create the training and validation loss curves.</p><p>Finally, <code>np.random.seed(42)</code> and <code>tf.random.set_seed(42)</code> set the random seed for NumPy and TensorFlow. I kept the value at <code>42</code> throughout the experiments to make the training process more reproducible and to reduce unnecessary random differences when comparing different model configurations. Overall, this cell prepares the libraries, evaluation tools, and reproducibility settings needed for the rest of the notebook.</p></section><section class="cell markdown-cell"><h3>1. LOAD &amp; PREPROCESS CSV DATA</h3></section><section class="cell code-cell"><p class="cell-label">Code cell 2</p><pre><code>#CSV_FILEPATH = &quot;/content/drive/MyDrive/PT-P2-Neural Network Training_TULIO/10examples_TULIO.csv&quot;
+CSV_FILEPATH = &quot;/content/drive/MyDrive/PT-P2-Neural Network Training_TULIO/Custom_Expanded_Training_Dataset_1.csv&quot;
+
+MAX_LEN = 20              # Fixed sequence length (padded/truncated)
+MAX_VOCAB_SIZE = 1000     # Vocabulary size limit</code></pre></section><section class="cell markdown-cell"><p>This code cell sets the <strong>dataset location and the main text preprocessing limits</strong> that will be used before training. <code>CSV_FILEPATH</code> contains the location of the CSV file in Google Drive. The original <code>10examples_TULIO.csv</code> path is kept as a comment for reference, while <code>Custom_Expanded_Training_Dataset_1.csv</code> is the dataset currently selected for the custom experiments.</p><p>The <code>MAX_LEN</code> value is set to <code>20</code>, which means each feedback entry will be represented using a maximum of 20 tokens. Shorter sequences will later be padded, while longer sequences will be shortened to this limit. <code>MAX_VOCAB_SIZE</code> is set to <code>1000</code> to control the maximum number of words that can be included in the vocabulary.</p><p>Keeping these values as separate variables also makes experimentation easier. For example, I can adjust <code>MAX_LEN</code> or <code>MAX_VOCAB_SIZE</code> when testing different text preprocessing configurations without changing the functions that use them.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 3</p><pre><code># Load CSV
+df = pd.read_csv(CSV_FILEPATH)</code></pre></section><section class="cell markdown-cell"><p>This code cell <strong>loads the selected dataset into the notebook</strong>. The <code>pd.read_csv()</code> function reads the CSV file located at <code>CSV_FILEPATH</code> and stores its contents in the DataFrame <code>df</code>.</p><p>After loading the file, <code>df</code> becomes the main reference for accessing the dataset. In the succeeding cells, I use columns such as <code>df[&quot;text&quot;]</code> for the customer feedback and <code>df[&quot;label&quot;]</code> for their corresponding categories. This step is simple, but it is important because the preprocessing process depends on the dataset being loaded correctly first.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 4</p><pre><code># Basic Tokenizer + Vocabulary Builder
+def build_vocab(texts, max_vocab_size):
+    words = [word for text in texts for word in str(text).split()]
+    word_counts = Counter(words)
+
+    # Reserve index 0 for padding (&lt;PAD&gt;) and 1 for unknown tokens (&lt;UNK&gt;)
+    most_common = word_counts.most_common(max_vocab_size - 2)
+
+    vocab = {
+        word: idx + 2
+        for idx, (word, _) in enumerate(most_common)
+    }
+
+    vocab[&quot;&lt;PAD&gt;&quot;] = 0
+    vocab[&quot;&lt;UNK&gt;&quot;] = 1
+
+    return vocab</code></pre></section><section class="cell markdown-cell"><p>This code cell defines the <code>build_vocab()</code> function, which is responsible for <strong>creating the vocabulary used to represent words as numerical values</strong>. It starts by going through all of the provided <code>texts</code>, splitting each text into individual words, and combining those words into one collection.</p><p>The <code>Counter()</code> function then counts how often each word appears. From these counts, <code>most_common()</code> keeps the most frequently occurring words according to <code>max_vocab_size</code>. I noticed that the code subtracts <code>2</code> from the vocabulary limit because two positions are intentionally reserved for special values.</p><p>The vocabulary assigns normal words numerical IDs starting from <code>2</code>. The value <code>0</code> is reserved for <code>&lt;PAD&gt;</code>, which will be used when a sequence is shorter than the required length, while <code>1</code> is assigned to <code>&lt;UNK&gt;</code> for words that are not available in the vocabulary.</p><p>Once these values are assigned, the function returns <code>vocab</code>. This gives the next preprocessing step a consistent way to convert words from the feedback into numerical IDs that the neural network can work with.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 5</p><pre><code>def text_to_sequence(text, vocab, max_len):
+    tokens = str(text).lower().split()
+
+    seq = [vocab.get(token, 1) for token in tokens]
+
+    if len(seq) &lt; max_len:
+        seq += [0] * (max_len - len(seq))
+    else:
+        seq = seq[:max_len]
+
+    return seq</code></pre></section><section class="cell markdown-cell"><p>This code cell defines the <code>text_to_sequence()</code> function, which <strong>converts each feedback entry from text into a fixed-length numerical sequence</strong>. The text is first converted to lowercase using <code>.lower()</code> and then separated into individual tokens using <code>.split()</code>. Converting the text to lowercase helps keep words such as &quot;Good&quot; and &quot;good&quot; from being treated differently during this step.</p><p>Each token is then matched with its numerical ID from <code>vocab</code>. The expression <code>vocab.get(token, 1)</code> looks for the token in the vocabulary, and if it cannot be found, the value <code>1</code> is used to represent <code>&lt;UNK&gt;</code> or an unknown word.</p><p>The next part makes sure that every sequence has the same length. When the sequence is shorter than <code>max_len</code>, zeros are added as <code>&lt;PAD&gt;</code> values. If the sequence is longer, <code>seq[:max_len]</code> keeps only the allowed number of tokens.</p><p>The completed sequence is then returned. This is necessary because the neural network expects the input samples to have a consistent numerical structure rather than different text lengths.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 6</p><pre><code># Build vocab and encode text
+vocab = build_vocab(df[&quot;text&quot;].tolist(), MAX_VOCAB_SIZE)
+
+encoded_texts = [
+    text_to_sequence(txt, vocab, MAX_LEN)
+    for txt in df[&quot;text&quot;]
+]</code></pre></section><section class="cell markdown-cell"><p>This code cell <strong>applies the vocabulary and sequence conversion functions to the actual feedback dataset</strong>. First, <code>build_vocab()</code> receives the values from <code>df[&quot;text&quot;]</code> and the <code>MAX_VOCAB_SIZE</code> limit. The <code>.tolist()</code> method converts the text column into a list that the vocabulary-building function can process.</p><p>After the vocabulary is created, the list comprehension goes through every feedback entry in <code>df[&quot;text&quot;]</code>. Each entry is passed to <code>text_to_sequence()</code> together with <code>vocab</code> and <code>MAX_LEN</code>.</p><p>The result is stored in <code>encoded_texts</code>. At this point, the original feedback sentences have been transformed into fixed-length sequences of numerical IDs. This is where the text starts becoming suitable as input for the neural network.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 7</p><pre><code>X_data = np.array(encoded_texts)
+y_data = np.array(df[&quot;label&quot;].values)
+
+num_classes = len(np.unique(y_data))</code></pre></section><section class="cell markdown-cell"><p>This code cell <strong>prepares the input features and target labels in numerical array form</strong>. <code>np.array(encoded_texts)</code> converts all of the processed text sequences into the NumPy array <code>X_data</code>, which will serve as the input data for the neural network.</p><p>For the expected outputs, <code>df[&quot;label&quot;].values</code> retrieves the labels from the dataset and converts them into the NumPy array <code>y_data</code>. This separates the inputs and their corresponding correct classifications into two variables that can later be passed to the training process.</p><p>The last part uses <code>np.unique(y_data)</code> to identify the different class labels present in the dataset. Applying <code>len()</code> gives the total number of classes and stores it in <code>num_classes</code>. Since my dataset contains three categories, this value is later used to create the correct number of neurons in the model&#x27;s output layer.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 8</p><pre><code># Dataset Partitioning (70% Train, 15% Val, 15% Test)
+X_train, X_temp, y_train, y_temp = train_test_split(
+    X_data,
+    y_data,
+    test_size=0.30,
+    random_state=42
+)
+
+X_val, X_test, y_val, y_test = train_test_split(
+    X_temp,
+    y_temp,
+    test_size=0.50,
+    random_state=42
+)</code></pre></section><section class="cell markdown-cell"><p>This code cell <strong>divides the processed dataset into training, validation, and testing sets</strong>. The first <code>train_test_split()</code> separates <code>X_data</code> and <code>y_data</code>, keeping 70% of the samples for <code>X_train</code> and <code>y_train</code>. The remaining 30% is temporarily stored in <code>X_temp</code> and <code>y_temp</code>.</p><p>A second <code>train_test_split()</code> divides that remaining 30% equally. Half becomes <code>X_val</code> and <code>y_val</code> for validation, while the other half becomes <code>X_test</code> and <code>y_test</code> for testing. This results in the intended distribution of <strong>70% training, 15% validation, and 15% testing</strong>.</p><p>I kept <code>random_state=42</code> in both splits so that the data is divided consistently when the code is rerun. The training set is used to teach the model, the validation set allows me to monitor its performance while experimenting with different configurations, and the test set remains separate for evaluating how well the trained model handles unseen data.</p></section><section class="cell markdown-cell"><h3>2. HYPERPARAMETER CONFIGURATION</h3></section><section class="cell code-cell"><p class="cell-label">Code cell 9</p><pre><code>CONFIG = {
+    &quot;run_id&quot;: &quot;EXP-01-KERAS-BASELINE&quot;,
+    &quot;embed_dim&quot;: 32,
+    &quot;hidden_dim&quot;: 64,
+    &quot;learning_rate&quot;: 0.005,
+    &quot;batch_size&quot;: 32,
+    &quot;epochs&quot;: 15,
+    &quot;optimizer_type&quot;: &quot;Adam&quot;,
+    &quot;dropout_rate&quot;: 0.1
+}</code></pre></section><section class="cell markdown-cell"><p>This code cell <strong>defines the hyperparameter configuration used for the current training experiment</strong>. I placed the settings inside the <code>CONFIG</code> dictionary so they can be changed in one location without modifying the other parts of the neural network code.</p><p>The <code>run_id</code> identifies the experiment and makes it easier to track which configuration produced a particular result. <code>embed_dim</code> controls the size of the numerical representation learned for each word, while <code>hidden_dim</code> determines the number of neurons in the hidden Dense layer.</p><p>The training behavior is controlled by several other values. <code>learning_rate</code> determines how large the weight adjustments are during training, <code>batch_size</code> specifies how many training samples are processed before the model updates its weights, and <code>epochs</code> sets the maximum number of times the model can go through the complete training set. The <code>optimizer_type</code> selects the optimizer used for updating the weights.</p><p>Finally, <code>dropout_rate</code> controls how much Dropout regularization is applied to the hidden layer. Keeping these settings together became especially useful during experimentation because I could adjust specific hyperparameters and observe how each change affected the training and validation performance.</p></section><section class="cell markdown-cell"><h3>3. KERAS SEQUENTIAL ARCHITECTURE</h3></section><section class="cell code-cell"><p class="cell-label">Code cell 10</p><pre><code>model = Sequential()</code></pre></section><section class="cell markdown-cell"><p>This code cell <strong>creates the neural network model using Keras <code>Sequential()</code></strong>. At this point, the model does not contain any layers yet. It serves as the structure where the Embedding, pooling, hidden, regularization, and output layers will be added in order.</p><p>I used a Sequential model because the architecture follows a straightforward flow where the output of one layer is passed directly to the next layer. This makes the structure easier to build and observe during the experiments.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 11</p><pre><code># Embedding Layer (Pillar 1: Architecture)
+model.add(
+    Embedding(
+        input_dim=len(vocab),
+        output_dim=CONFIG[&quot;embed_dim&quot;],
+        input_length=MAX_LEN,
+        mask_zero=True
+    )
+)</code></pre></section><section class="cell markdown-cell"><p>This code cell adds the <strong>Embedding layer</strong>, which is the first layer responsible for processing the numerical text sequences. The <code>input_dim</code> is based on <code>len(vocab)</code>, so the layer knows how many vocabulary entries can appear in the input.</p><p>The <code>output_dim</code> uses <code>CONFIG[&quot;embed_dim&quot;]</code>, which controls the size of the numerical vector learned for each word. Instead of treating a word as only an integer ID, the Embedding layer learns a set of numerical features that can represent useful information about that word during training.</p><p><code>input_length=MAX_LEN</code> connects the layer to the fixed sequence length prepared during preprocessing. I also use <code>mask_zero=True</code> because the value <code>0</code> is reserved for <code>&lt;PAD&gt;</code>. This tells the model that padded positions are not actual words.</p><p>I consider this part important to the Architecture pillar because changing <code>embed_dim</code> directly changes how much information the model can learn to represent for each vocabulary word.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 12</p><pre><code># Global Average Pooling across token sequence dimension
+model.add(GlobalAveragePooling1D())</code></pre></section><section class="cell markdown-cell"><p>This code cell adds <code>GlobalAveragePooling1D()</code>, which <strong>combines the sequence of word embeddings into one fixed-size representation</strong>. The Embedding layer produces a numerical vector for each token in the feedback, so there are several vectors for a single input sequence.</p><p><code>GlobalAveragePooling1D()</code> takes the average of these token representations across the sequence. This gives the next Dense layer one compact representation of the feedback instead of a separate vector for every token position.</p><p>From observing the architecture, this also keeps the model relatively simple because it reduces the sequence before it reaches the hidden layer. The resulting features can then be used by the Dense layer for classification.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 13</p><pre><code># First Hidden Layer
+model.add(Dense(CONFIG[&quot;hidden_dim&quot;], activation=&quot;relu&quot;))</code></pre></section><section class="cell markdown-cell"><p>This code cell adds the <strong>main hidden Dense layer</strong> of the neural network. The number of neurons comes from <code>CONFIG[&quot;hidden_dim&quot;]</code>, which means its size can be changed easily between experiments.</p><p>The layer uses the <code>relu</code> activation function. ReLU allows the network to learn more complex patterns from the numerical text representation rather than relying only on simple linear relationships.</p><p>The <code>hidden_dim</code> value became one of the important architecture settings during experimentation. Increasing or decreasing the number of neurons changes the capacity of the model, so I could observe whether a larger hidden layer helped the model learn the feedback patterns more effectively.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 14</p><pre><code># Regularization Layer (Pillar 3: Regularization)
+model.add(Dropout(CONFIG[&quot;dropout_rate&quot;]))</code></pre></section><section class="cell markdown-cell"><p>This code cell adds the <strong>Dropout regularization layer</strong> after the hidden Dense layer. The amount of Dropout is controlled by <code>CONFIG[&quot;dropout_rate&quot;]</code>.</p><p>During training, Dropout temporarily disables a portion of the hidden-layer outputs. This encourages the network to avoid depending too heavily on only a few neurons and can help reduce overfitting.</p><p>I found this setting useful during the experiments because a model can continue improving on the training data while becoming less effective on validation data. Adjusting the dropout rate provides a way to control that behavior and observe whether stronger regularization improves generalization.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 15</p><pre><code># Output Layer
+model.add(Dense(num_classes, activation=&quot;softmax&quot;))</code></pre></section><section class="cell markdown-cell"><p>This code cell adds the <strong>final output layer used for classification</strong>. The number of neurons is determined by <code>num_classes</code>, which was calculated earlier from the unique labels in the dataset. Since the feedback task contains three categories, the model produces one output value for each possible class.</p><p>The layer uses the <code>softmax</code> activation function, which converts the outputs into class probabilities. These probabilities show how strongly the model associates the input feedback with each category.</p><p>During prediction, the class with the highest probability can then be selected as the model&#x27;s final classification. This completes the forward structure of the neural network, starting from the encoded text and ending with the predicted feedback category.</p></section><section class="cell markdown-cell"><h3>4. OPTIMIZER &amp; COMPILATION</h3></section><section class="cell code-cell"><p class="cell-label">Code cell 16</p><pre><code>if CONFIG[&quot;optimizer_type&quot;] == &quot;Adam&quot;:
+    opt = Adam(learning_rate=CONFIG[&quot;learning_rate&quot;])
+else:
+    opt = SGD(learning_rate=CONFIG[&quot;learning_rate&quot;])</code></pre></section><section class="cell markdown-cell"><p>This code cell <strong>selects the optimizer that will be used to update the neural network&#x27;s weights during training</strong>. It checks the value stored in <code>CONFIG[&quot;optimizer_type&quot;]</code>. If the selected optimizer is <code>&quot;Adam&quot;</code>, the code creates an <code>Adam</code> optimizer. Otherwise, it uses <code>SGD</code>.</p><p>Both choices use <code>CONFIG[&quot;learning_rate&quot;]</code>, so the learning rate can also be adjusted from the configuration. The learning rate controls the size of the weight adjustments made as the model learns from its errors.</p><p>Keeping this selection connected to <code>CONFIG</code> makes the optimization process easier to experiment with. I can change the optimizer or learning rate without rewriting the training code, which helps keep the different experiment configurations organized.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 17</p><pre><code># Configure loss function, optimizer engine, and evaluation metrics
+model.compile(
+    loss=&quot;sparse_categorical_crossentropy&quot;,
+    optimizer=opt,
+    metrics=[&quot;accuracy&quot;]
+)</code></pre></section><section class="cell markdown-cell"><p>This code cell <strong>compiles the neural network and defines how its training performance will be measured</strong>. The loss function is set to <code>sparse_categorical_crossentropy</code>, which is appropriate for this task because there are multiple possible classes and the target labels are represented as integer values.</p><p>The <code>optimizer=opt</code> setting uses the optimizer selected in the previous code cell. During training, this optimizer adjusts the model&#x27;s weights based on the calculated loss and the configured learning rate.</p><p>I also include <code>metrics=[&quot;accuracy&quot;]</code> so the model reports the proportion of correctly classified samples during both training and validation. At this stage, the architecture and learning settings are connected together, so the model is ready to begin training.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 18</p><pre><code>model.summary()</code></pre></section><section class="cell markdown-cell"><p>This code cell uses <code>model.summary()</code> to <strong>display the structure of the neural network before training begins</strong>. The summary shows the layers included in the model together with their output shapes and parameter counts once the model has been built.</p><p>I use this output as a quick check that the architecture matches the current experiment. This becomes useful when values such as <code>embed_dim</code> or <code>hidden_dim</code> are changed because the summary provides a visible confirmation of how those architecture settings affect the model.</p></section><section class="cell markdown-cell"><h3>5. THE OPERATION LOOP (FIT &amp; EVALUATE)</h3></section><section class="cell code-cell"><p class="cell-label">Code cell 19</p><pre><code>print(f&quot;--- Starting Training Run: {CONFIG[&#x27;run_id&#x27;]} ---&quot;)</code></pre></section><section class="cell markdown-cell"><p>This code cell <strong>displays the ID of the experiment before the training process begins</strong>. It retrieves the value from <code>CONFIG[&quot;run_id&quot;]</code> and includes it in the printed message.</p><p>Since I performed several training experiments with different configurations, showing the run ID makes it easier to identify which experiment produced the following epoch results. It also helps keep the outputs organized when comparing the different training runs.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 20</p><pre><code>early_stopping = EarlyStopping(
+    monitor=&quot;val_loss&quot;,
+    patience=3,
+    restore_best_weights=True,
+    verbose=1
+)</code></pre></section><section class="cell markdown-cell"><p>This code cell configures <strong>Early Stopping</strong>, which I added to prevent the model from continuing to train when its validation performance is no longer improving. The callback monitors <code>val_loss</code>, so it specifically watches the validation loss after each epoch.</p><p>The <code>patience=3</code> setting allows the model to continue for three consecutive epochs without an improvement in validation loss. This gives the model some opportunity to improve again instead of stopping immediately after one weaker epoch.</p><p>I also use <code>restore_best_weights=True</code>. This became an important part of the experiments because the epoch where training stops is not always the epoch with the best validation performance. With this option enabled, Keras restores the weights from the epoch that achieved the lowest validation loss.</p><p>Finally, <code>verbose=1</code> makes the Early Stopping activity visible in the output. This allowed me to observe both the stopping epoch and the earlier best epoch that was restored.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 21</p><pre><code>history = model.fit(
+    X_train,
+    y_train,
+    validation_data=(X_val, y_val),
+    epochs=CONFIG[&quot;epochs&quot;],
+    batch_size=CONFIG[&quot;batch_size&quot;],
+    callbacks=[early_stopping],
+    verbose=1
+)</code></pre></section><section class="cell markdown-cell"><p>This code cell <strong>starts the actual neural network training process using <code>model.fit()</code></strong>. The model learns from <code>X_train</code> and <code>y_train</code>, which contain the training inputs and their correct labels.</p><p>The <code>validation_data=(X_val, y_val)</code> argument allows the model to evaluate itself on the validation set after every epoch. I use this to compare training performance with data that is not directly being used to update the model&#x27;s weights.</p><p>The maximum number of training epochs comes from <code>CONFIG[&quot;epochs&quot;]</code>, while <code>CONFIG[&quot;batch_size&quot;]</code> determines how many training samples are processed before a weight update is performed. The <code>callbacks=[early_stopping]</code> setting activates the Early Stopping configuration from the previous cell.</p><p>The results from every completed epoch are stored in <code>history</code>. I use this object later to retrieve the training and validation losses for the loss-curve graph. One thing I observed during the custom experiments is that the actual number of completed epochs can be lower than the configured maximum because Early Stopping can end the training once validation loss stops improving.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 22</p><pre><code># Compute final validation predictions for F1-score calculation
+val_preds_probs = model.predict(X_val)
+val_preds = np.argmax(val_preds_probs, axis=1)</code></pre></section><section class="cell markdown-cell"><p>This code cell <strong>generates predictions for the validation dataset after training has finished</strong>. <code>model.predict(X_val)</code> processes each validation sample and returns the probability assigned to every possible class. These probability values are stored in <code>val_preds_probs</code>.</p><p>Since I need actual class predictions for the evaluation metrics, <code>np.argmax()</code> is used with <code>axis=1</code> to find the class with the highest probability for each sample. The selected class values are stored in <code>val_preds</code>.</p><p>Because these predictions are generated after <code>model.fit()</code> finishes, they use the model&#x27;s current weights. When Early Stopping restores the best weights, the validation predictions are therefore based on that restored model rather than simply the final stopping epoch.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 23</p><pre><code>val_f1 = f1_score(
+    y_val,
+    val_preds,
+    average=&quot;weighted&quot;
+)</code></pre></section><section class="cell markdown-cell"><p>This code cell calculates the <strong>weighted F1-score for the validation predictions</strong>. The <code>f1_score()</code> function compares the actual validation labels in <code>y_val</code> with the model&#x27;s predictions in <code>val_preds</code>.</p><p>The F1-score combines precision and recall into one measurement, which gives me another way to evaluate the model beyond accuracy alone. I use <code>average=&quot;weighted&quot;</code> so the contribution of each class is considered according to the number of samples belonging to that class.</p><p>I included this metric in the experiment results because it provides a more balanced view of classification performance, especially when comparing different model configurations.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 24</p><pre><code># Validation Weighted Precision
+val_precision = precision_score(
+    y_val,
+    val_preds,
+    average=&quot;weighted&quot;,
+    zero_division=0
+)</code></pre></section><section class="cell markdown-cell"><p>This code cell calculates the <strong>weighted precision of the model on the validation set</strong>. <code>precision_score()</code> compares <code>y_val</code> with <code>val_preds</code> and measures how often the model&#x27;s predicted class assignments are correct.</p><p>The <code>average=&quot;weighted&quot;</code> setting combines the precision values from all classes while considering how many validation samples belong to each class. I also use <code>zero_division=0</code> so the calculation returns <code>0</code> instead of producing an undefined result if the model does not predict a particular class.</p><p>Adding precision gives me a clearer view of the quality of the model&#x27;s predictions and provides another metric that can be recorded in the training log.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 25</p><pre><code># Validation Weighted Recall
+val_recall = recall_score(
+    y_val,
+    val_preds,
+    average=&quot;weighted&quot;,
+    zero_division=0
+)</code></pre></section><section class="cell markdown-cell"><p>This code cell calculates the <strong>weighted recall for the validation set</strong>. Recall focuses on how many of the actual samples belonging to each class were successfully identified by the model.</p><p>The function compares <code>y_val</code> with <code>val_preds</code>, while <code>average=&quot;weighted&quot;</code> combines the recall values across all classes according to their number of samples. Similar to the precision calculation, <code>zero_division=0</code> prevents an undefined value from interrupting the evaluation if a class has no valid calculation.</p><p>Together with precision and F1-score, recall gives me a more complete view of how well the model performs across the feedback categories instead of relying only on overall accuracy.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 26</p><pre><code>val_loss = history.history[&quot;val_loss&quot;][-1]</code></pre></section><section class="cell markdown-cell"><p>This code cell retrieves the <strong>last recorded validation loss</strong> from the training history. <code>history.history[&quot;val_loss&quot;]</code> contains the validation-loss value from every completed epoch, while <code>[-1]</code> selects the final value in that list.</p><p>While working with Early Stopping, I observed that this value does not always represent the best epoch. For example, the model may achieve its lowest validation loss at an earlier epoch and then stop several epochs later because of the <code>patience=3</code> setting.</p><p>Since <code>restore_best_weights=True</code> restores the earlier best model, I also check the Early Stopping output when recording the best validation result. This helped me distinguish between the <strong>best epoch</strong> and the <strong>early stopping epoch</strong> during the custom experiments.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 27</p><pre><code># Final Log Output summary for Excel logging
+print(
+    f&quot;ID: {CONFIG[&#x27;run_id&#x27;]} | &quot;
+    f&quot;LR: {CONFIG[&#x27;learning_rate&#x27;]} | &quot;
+    f&quot;Hidden: {CONFIG[&#x27;hidden_dim&#x27;]} | &quot;
+    f&quot;Dropout: {CONFIG[&#x27;dropout_rate&#x27;]} | &quot;
+    f&quot;Final Val Loss: {val_loss:.4f} | &quot;
+    f&quot;Final Val F1: {val_f1:.4f} | &quot;
+    f&quot;Final Val Precision: {val_precision:.4f} | &quot;
+    f&quot;Final Val Recall: {val_recall:.4f} | &quot;
+)</code></pre></section><section class="cell markdown-cell"><p>This code cell <strong>prints a summary of the main configuration and validation results for the current experiment</strong>. It displays <code>run_id</code>, learning rate, hidden-layer size, and dropout rate so I can immediately see which settings were used.</p><p>The output also includes the validation loss, weighted F1-score, weighted precision, and weighted recall. The <code>:.4f</code> formatting keeps these numerical results to four decimal places, which makes them easier to read and record consistently.</p><p>I added this summary because the exercise requires the results from each experiment to be documented in the training log. Having the important values together in one output makes it easier to transfer the results and compare how the different configurations affected model performance.</p></section><section class="cell markdown-cell"><h3>6. GENERATE LOSS CURVES CHART</h3></section><section class="cell code-cell"><p class="cell-label">Code cell 28</p><pre><code>train_losses = history.history[&quot;loss&quot;]
+val_losses = history.history[&quot;val_loss&quot;]</code></pre></section><section class="cell markdown-cell"><p>This code cell <strong>retrieves the training and validation loss values recorded during each completed epoch</strong>. The values come from the <code>history</code> object that was returned by <code>model.fit()</code>.</p><p><code>history.history[&quot;loss&quot;]</code> contains the training loss and is stored in <code>train_losses</code>, while <code>history.history[&quot;val_loss&quot;]</code> contains the validation loss and is stored in <code>val_losses</code>.</p><p>Keeping both sets of values allows me to compare how the model behaves on the training data and validation data over time. This comparison is useful for observing whether the model is learning properly or beginning to show signs of underfitting or overfitting.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 29</p><pre><code>#epochs_range = range(1, CONFIG[&quot;epochs&quot;] + 1)
+epochs_range = range(1, len(train_losses) + 1)</code></pre></section><section class="cell markdown-cell"><p>This code cell creates the <strong>epoch range that will be used along the X-axis of the loss-curve graph</strong>. Originally, the range was based on <code>CONFIG[&quot;epochs&quot;]</code>, which assumes that the model always completes every configured epoch.</p><p>After adding Early Stopping, I changed the range to <code>len(train_losses)</code>. This checks how many epochs were actually completed and creates the X-axis based on that number.</p><p>This adjustment became necessary during the custom experiments. For example, a model configured for 50 epochs might stop at Epoch 11. Using the actual number of recorded training-loss values prevents the graph from expecting 50 points when only 11 epochs were completed.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 30</p><pre><code>plt.figure(figsize=(8, 5))</code></pre></section><section class="cell markdown-cell"><p>This code cell <strong>creates the figure that will contain the loss curves</strong>. The <code>figsize=(8, 5)</code> setting controls the width and height of the graph.</p><p>I used this size to keep the graph large enough for the epoch values, loss curves, labels, and legend to remain readable without taking up too much space in the notebook.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 31</p><pre><code>plt.plot(
+    epochs_range,
+    train_losses,
+    label=&quot;Training Loss&quot;,
+    color=&quot;blue&quot;,
+    linewidth=2,
+    marker=&quot;o&quot;
+)</code></pre></section><section class="cell markdown-cell"><p>This code cell <strong>plots the training loss across the completed epochs</strong>. <code>epochs_range</code> provides the epoch numbers along the X-axis, while <code>train_losses</code> provides the corresponding training-loss values along the Y-axis.</p><p>The curve is labeled <code>&quot;Training Loss&quot;</code> so it can be identified in the graph legend. I also use a solid line with circular markers to make the individual epoch values easier to observe.</p><p>Watching this curve helped me see how quickly the model was learning the training data. In several experiments, the training loss became very small, so comparing it with validation loss was important for determining whether that improvement also carried over to unseen validation samples.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 32</p><pre><code>plt.plot(
+    epochs_range,
+    val_losses,
+    label=&quot;Validation Loss&quot;,
+    color=&quot;red&quot;,
+    linewidth=2,
+    linestyle=&quot;--&quot;,
+    marker=&quot;s&quot;
+)</code></pre></section><section class="cell markdown-cell"><p>This code cell adds the <strong>validation-loss curve</strong> to the same graph. It uses the same <code>epochs_range</code>, but the Y-axis values come from <code>val_losses</code>.</p><p>I gave the validation curve a different line style and square markers so it can be distinguished clearly from the training-loss curve. This curve became especially important when using Early Stopping because <code>val_loss</code> is the value being monitored to determine whether training should continue.</p><p>By comparing both curves, I can observe whether validation loss continues to decrease with training loss or begins to rise while training loss keeps falling. The second pattern can indicate that the model is beginning to overfit the training data.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 33</p><pre><code>plt.title(
+    f&quot;Performance Monitoring: Loss Curves ({CONFIG[&#x27;run_id&#x27;]})&quot;,
+    fontsize=12,
+    fontweight=&quot;bold&quot;
+)</code></pre></section><section class="cell markdown-cell"><p>This code cell <strong>adds a title to the loss-curve graph</strong>. The title includes <code>CONFIG[&quot;run_id&quot;]</code>, so the graph automatically displays the ID of the experiment that produced it.</p><p>I found this helpful when comparing several experiments because each graph can be identified without having to rely only on its position in the notebook. The <code>fontsize</code> and <code>fontweight</code> settings also make the title easier to notice above the plotted results.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 34</p><pre><code>plt.xlabel(&quot;Epochs&quot;, fontsize=10)
+plt.ylabel(&quot;Loss (Sparse Categorical Cross-Entropy)&quot;, fontsize=10)</code></pre></section><section class="cell markdown-cell"><p>This code cell <strong>labels the X-axis and Y-axis of the loss graph</strong>. <code>plt.xlabel()</code> labels the horizontal axis as <code>&quot;Epochs&quot;</code>, which represents how many complete training cycles have been performed.</p><p><code>plt.ylabel()</code> identifies the vertical values as the loss measured using <strong>Sparse Categorical Cross-Entropy</strong>, which is the same loss function configured earlier in <code>model.compile()</code>.</p><p>These labels make the graph easier to interpret because they clearly show that I am observing how the model&#x27;s calculated loss changes as training progresses through each epoch.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 35</p><pre><code>plt.xticks(epochs_range)</code></pre></section><section class="cell markdown-cell"><p>This code cell <strong>displays each completed epoch as a value on the X-axis</strong>. The values come directly from <code>epochs_range</code>, so the displayed ticks match the actual number of epochs completed during training.</p><p>This is particularly useful with Early Stopping because I can clearly identify where the model stopped and compare that point with the best epoch reported in the training output.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 36</p><pre><code>plt.grid(True, linestyle=&quot;:&quot;, alpha=0.6)
+plt.legend(loc=&quot;upper right&quot;)
+plt.tight_layout()</code></pre></section><section class="cell markdown-cell"><p>This code cell <strong>improves the readability and layout of the completed graph</strong>. <code>plt.grid()</code> adds light reference lines, which make it easier to compare the loss values across different epochs.</p><p><code>plt.legend()</code> displays the labels for <code>&quot;Training Loss&quot;</code> and <code>&quot;Validation Loss&quot;</code> in the upper-right portion of the graph. This makes it clear which curve represents each type of loss.</p><p>Finally, <code>plt.tight_layout()</code> automatically adjusts the spacing around the graph. I use this so the title, axis labels, tick values, and legend fit properly without overlapping or being cut off.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 37</p><pre><code>plt.show()</code></pre></section><section class="cell markdown-cell"><p>This code cell <strong>displays the completed training and validation loss graph</strong>. Once <code>plt.show()</code> is called, I can visually compare how both losses changed throughout the training process.</p><p>I use this graph together with the numerical metrics in the training log when evaluating each experiment. A large or increasing separation between training and validation loss can suggest overfitting, while consistently high losses can indicate underfitting. When both curves decrease and validation performance remains strong, the model shows a better fit.</p><p>For the custom experiments, the graph also helped me understand why Early Stopping selected a particular best epoch. It provides a visual confirmation of where validation loss stopped improving even when training loss continued to decrease.</p></section><section class="cell markdown-cell"><h2>List of changes to each EXP for this exercise</h2></section><section class="cell code-cell"><p class="cell-label">Code cell 38</p><pre><code># ============================================================
+# EXPERIMENT CHANGE LOG
+# ============================================================
+
+# EXP-01 – KERAS BASELINE
+# Purpose: Establish the initial baseline performance of the model.
+# Dataset: Original dataset (30 samples / 10 samples per class)
+# embed_dim = 32
+# hidden_dim = 64
+# learning_rate = 0.005
+# batch_size = 32
+# epochs = 15
+# optimizer = Adam
+# dropout_rate = 0.1
+# MAX_LEN = 20
+# MAX_VOCAB_SIZE = 1000
+# No custom optimization was applied.
+
+
+# EXP-02 – LOWER MODEL CAPACITY / LEARNING RATE
+# Purpose: Test the effect of reducing model capacity and using a
+# smaller learning rate.
+# Changes from EXP-01:
+# hidden_dim: 64 -&gt; 16
+# learning_rate: 0.005 -&gt; 0.0001
+# dropout_rate: 0.1 -&gt; 0.0
+# Other settings remained unchanged.
+
+
+# EXP-03 – HIGH MODEL CAPACITY / HIGH LEARNING RATE
+# Purpose: Test the effect of a much larger hidden layer and
+# aggressive learning rate.
+# Changes:
+# hidden_dim: 16 -&gt; 256
+# learning_rate: 0.0001 -&gt; 0.05
+# dropout_rate remained 0.0
+# Result showed severe overfitting / unstable generalization.
+
+
+# EXP-04 – REGULARIZATION
+# Purpose: Reduce overfitting by introducing stronger dropout.
+# Changes:
+# hidden_dim: 256 -&gt; 128
+# learning_rate: 0.05 -&gt; 0.005
+# dropout_rate: 0.0 -&gt; 0.4
+# Dropout was used to limit dependence on specific neurons.
+
+
+# ============================================================
+# CUSTOM OPTIMIZATION EXPERIMENTS
+# ============================================================
+
+# EXP-05A – DATA EXPANSION + EARLY STOPPING
+# Strategy: Data Augmentation / Expansion
+# Main change:
+# Dataset: 30 samples -&gt; 900 balanced samples
+#          (300 samples per class)
+#
+# Configuration:
+# embed_dim = 32
+# hidden_dim = 128
+# learning_rate = 0.005
+# batch_size = 32
+# epochs = 30 maximum
+# dropout_rate = 0.4
+# MAX_LEN = 20
+# MAX_VOCAB_SIZE = 1000
+#
+# EarlyStopping was enabled:
+# monitor = &quot;val_loss&quot;
+# patience = 3
+# restore_best_weights = True
+#
+# Best Epoch = 3
+# Early Stopping Epoch = 6
+
+
+# EXP-05B – OPTIMIZATION &amp; TRAINING
+# Strategy: Lower learning rate with longer maximum training.
+# Main changes from EXP-05A:
+# learning_rate: 0.005 -&gt; 0.001
+# epochs: 30 -&gt; 50 maximum
+#
+# Dataset remained at 900 samples.
+# hidden_dim = 128
+# dropout_rate = 0.4
+# batch_size = 32
+# EarlyStopping remained enabled.
+#
+# Best Epoch = 19
+# Early Stopping Epoch = 22
+
+
+# EXP-05C – ARCHITECTURE OPTIMIZATION
+# Strategy: Increase hidden layer capacity.
+# Main change from EXP-05B:
+# hidden_dim: 128 -&gt; 256
+#
+# learning_rate = 0.001
+# embed_dim = 32
+# batch_size = 32
+# dropout_rate = 0.4
+# epochs = 50 maximum
+# MAX_LEN = 20
+# MAX_VOCAB_SIZE = 1000
+# EarlyStopping remained enabled.
+#
+# Best Epoch = 14
+# Early Stopping Epoch = 17
+
+
+# EXP-05D – TEXT PREPROCESSING
+# Strategy: Adjust maximum sequence length.
+# Main change from EXP-05C:
+# MAX_LEN: 20 -&gt; 30
+#
+# MAX_VOCAB_SIZE remained 1000.
+# embed_dim = 32
+# hidden_dim = 256
+# learning_rate = 0.001
+# batch_size = 32
+# dropout_rate = 0.4
+# EarlyStopping remained enabled.
+#
+# Best Epoch = 14
+# Early Stopping Epoch = 17
+
+
+# EXP-05E – ARCHITECTURE + OPTIMIZATION
+# Strategy: Combine architecture and optimization changes.
+#
+# Main changes:
+# MAX_LEN: 30 -&gt; 20
+# embed_dim: 32 -&gt; 64
+# batch_size: 32 -&gt; 16
+#
+# hidden_dim = 256
+# learning_rate = 0.001
+# dropout_rate = 0.4
+# MAX_VOCAB_SIZE = 1000
+# epochs = 50 maximum
+# EarlyStopping remained enabled.
+#
+# Best Epoch = 8
+# Early Stopping Epoch = 11
+
+
+# EXP-05F – ARCHITECTURE + TEXT PREPROCESSING
+# Strategy: Combine a larger embedding representation with
+# a larger vocabulary limit.
+#
+# Main changes from EXP-05E:
+# embed_dim: 64 -&gt; 128
+# MAX_VOCAB_SIZE: 1000 -&gt; 2000
+#
+# MAX_LEN = 20
+# hidden_dim = 256
+# learning_rate = 0.001
+# batch_size = 16
+# dropout_rate = 0.4
+# epochs = 50 maximum
+# EarlyStopping remained enabled.
+#
+# Best Epoch = 8
+# Early Stopping Epoch = 11</code></pre></section></main>
+  </body>
+</html>

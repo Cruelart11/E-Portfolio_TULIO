@@ -567,6 +567,12 @@ p, h1, h2, h3, dl, dd { margin: 0; }
   min-width: 0;
 }
 
+.prelim-activity + .prelim-activity {
+  margin-top: 32px;
+  padding-top: 32px;
+  border-top: 1px solid var(--border);
+}
+
 .prelim-activity-heading {
   display: flex;
   align-items: center;
