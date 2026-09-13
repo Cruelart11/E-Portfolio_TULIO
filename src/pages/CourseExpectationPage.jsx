@@ -19,7 +19,7 @@ function CourseExpectationPage() {
       </section>
 
       <section className="course-assignment-card" aria-labelledby="assignment-title">
-        <p className="assignment-command">$ cat adviser-questions.md</p>
+        <p className="assignment-command">$ Questions</p>
         <h2 id="assignment-title">E-Portfolio Activity</h2>
         <p className="assignment-intro">
           We are tasked with creating an E-portfolio where our activities and assignments will be
