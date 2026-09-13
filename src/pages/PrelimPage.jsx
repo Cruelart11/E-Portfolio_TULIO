@@ -10,6 +10,12 @@ const folders = [
     description: 'Submitted reports, notebooks, and supporting data.',
   },
   {
+    title: 'Written Works',
+    count: '1 written work',
+    icon: 'Aa',
+    description: 'Written learning activities and reflection reports.',
+  },
+  {
     title: 'Long Quiz',
     count: 'blue notebook',
     icon: '?',
@@ -83,20 +89,49 @@ const exerciseTwoDocuments = [
   },
 ]
 
-function ExerciseActivity({ number, title, description, documents }) {
-  const titleId = `exercise-${number}-title`
+const writtenWorkOneDocuments = [
+  {
+    title: 'IEEE Report',
+    filename: 'ieee_report_Tulio.pdf',
+    meta: '2-page PDF',
+    previewPath: 'documents/prelim/written-work-1-ieee-report.pdf#view=FitH',
+    filePath: 'documents/prelim/written-work-1-ieee-report.pdf',
+    fileLabel: 'Open PDF',
+  },
+  {
+    title: 'Steps 1–4: NLP Learning Activity',
+    filename: 'Step 1 - 4_TULIO_NLP.pdf',
+    meta: '5-page PDF',
+    previewPath: 'documents/prelim/written-work-1-steps-1-4.pdf#view=FitH',
+    filePath: 'documents/prelim/written-work-1-steps-1-4.pdf',
+    fileLabel: 'Open PDF',
+  },
+]
+
+function Activity({ type, number, title, description, reflection, documents }) {
+  const activitySlug = `${type}-${number}`.toLowerCase().replaceAll(' ', '-')
+  const titleId = `${activitySlug}-title`
 
   return (
     <article className="prelim-activity" aria-labelledby={titleId}>
       <div className="prelim-activity-heading">
-        <span>Exercise {number}</span>
+        <span>{type} {number}</span>
         <strong>Submitted</strong>
       </div>
       <h2 id={titleId}>{title}</h2>
-      <p>{description}</p>
+      <div className="activity-context">
+        <section aria-labelledby={`${activitySlug}-description`}>
+          <h3 id={`${activitySlug}-description`}>Description</h3>
+          <p>{description}</p>
+        </section>
+        <section aria-labelledby={`${activitySlug}-reflection`}>
+          <h3 id={`${activitySlug}-reflection`}>Learning Reflection</h3>
+          <p>{reflection}</p>
+        </section>
+      </div>
       <div className="document-preview-list">
         {documents.map((document) => (
-          <DocumentPreview key={`${number}-${document.title}`} {...document} />
+          <DocumentPreview key={`${activitySlug}-${document.title}`} {...document} />
         ))}
       </div>
     </article>
@@ -143,19 +178,32 @@ function PrelimPage() {
           >
             {folder.title === 'Exercises' ? (
               <>
-                <ExerciseActivity
+                <Activity
+                  type="Exercise"
                   number="1"
                   title="PT-P1: Deep Learning (Neural Networks)"
                   description="Customer sentiment classification using a no-code deep learning neural network, with its IEEE report, supporting screenshots, and workbook data."
+                  reflection="Through this activity, I learned how data preparation, neural-network training, testing, and documentation work together when building a customer sentiment classifier. The results showed me that a model should not be judged by accuracy alone because the quality of its data and the way its performance is evaluated also affect whether its predictions are useful. This exercise helped me better understand the importance of reviewing both the model's process and its results before applying it to a real problem."
                   documents={exerciseOneDocuments}
                 />
-                <ExerciseActivity
+                <Activity
+                  type="Exercise"
                   number="2"
                   title="PT-P2 - Neural Network Training and Testing (HyperParameters)"
                   description="Neural network training and testing with hyperparameter configurations, documented through an IEEE report, Google Colab notebook, and FFBP training log."
+                  reflection="Through this activity, I learned that tuning a neural network requires comparing different configurations instead of assuming that one set of hyperparameters will always perform best. Reviewing the training and testing behavior helped me understand how a model can overfit when it learns the training data too closely or underfit when it cannot learn enough from the data. This process showed me the importance of finding a balanced configuration that produces more consistent results on both training and testing data."
                   documents={exerciseTwoDocuments}
                 />
               </>
+            ) : folder.title === 'Written Works' ? (
+              <Activity
+                type="Written Work"
+                number="1"
+                title="Natural Language Processing Concepts"
+                description="This written work documents the completion of an NLP learning activity and presents an IEEE reflection report about text preprocessing, statistical text representation, and contextual language techniques."
+                reflection="This written work developed my understanding of NLP from a general idea into a clearer view of the complete language-processing pipeline. I learned that preprocessing decisions, such as removing words or reducing them to their base forms, can improve consistency but may also change meaning when applied without care. Comparing TF-IDF with word embeddings also helped me understand the difference between measuring the statistical importance of words and representing their semantic relationships. Most importantly, I learned that the appropriate technique depends on the data and the problem being solved, not simply on which method is newest."
+                documents={writtenWorkOneDocuments}
+              />
             ) : notebookNotice}
           </PrelimFolder>
         ))}

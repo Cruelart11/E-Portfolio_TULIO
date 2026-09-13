@@ -599,9 +599,27 @@ p, h1, h2, h3, dl, dd { margin: 0; }
   font: 700 22px/30px var(--display);
 }
 
-.prelim-activity > p {
+.activity-context {
+  display: grid;
+  gap: 18px;
   max-width: 760px;
-  margin-top: 8px;
+  margin-top: 18px;
+}
+
+.activity-context section {
+  padding-left: 14px;
+  border-left: 2px solid rgba(126, 231, 135, 0.45);
+}
+
+.activity-context h3 {
+  margin-bottom: 5px;
+  color: var(--green);
+  font: 600 12px/18px var(--mono);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.activity-context p {
   color: var(--muted);
   font-size: 14px;
   line-height: 1.625;
