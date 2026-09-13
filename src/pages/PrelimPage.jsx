@@ -1,61 +1,65 @@
 import { useState } from 'react'
+import DocumentPreview from '../components/DocumentPreview.jsx'
 import PrelimFolder from '../components/PrelimFolder.jsx'
-
-const stats = [
-  ['04', 'sections'],
-  ['08', 'items'],
-  ['06', 'graded'],
-]
 
 const folders = [
   {
     title: 'Exercises',
-    count: '3 items',
+    count: '1 activity',
     icon: '</>',
-    description: 'Weekly hands-on drills committed to the class repository.',
-    items: [
-      {
-        code: 'EX-01',
-        status: 'Done',
-        title: 'Hello, Toolchain',
-        description: 'Configured Git, VS Code, and Node. Pushed a first signed commit to the class repo.',
-        tags: ['git', 'setup'],
-      },
-      {
-        code: 'EX-02',
-        status: '20 / 20',
-        title: 'Control Flow Katas',
-        description: 'Twelve short problems covering conditionals, loops, and early returns.',
-        tags: ['logic', 'python'],
-      },
-      {
-        code: 'EX-03',
-        status: '18 / 20',
-        title: 'Arrays & Strings',
-        description: 'Reverse, rotate, and de-duplicate — implemented without built-in helpers.',
-        tags: ['data structures'],
-      },
-    ],
+    description: 'Submitted reports and supporting data for PT-P1.',
   },
   {
-    title: 'Quiz',
-    count: '2 items',
+    title: 'Long Quiz',
+    count: 'blue notebook',
     icon: '?',
-    description: 'Short assessments checking retention of weekly concepts.',
-  },
-  {
-    title: 'Projects',
-    count: '2 items',
-    icon: '▲',
-    description: 'Larger builds that combine several weeks of concepts.',
+    description: 'Face-to-face written assessment.',
   },
   {
     title: 'Prelim Exam',
-    count: '1 item',
+    count: 'blue notebook',
     icon: '★',
-    description: 'Comprehensive assessment covering the full prelim scope.',
+    description: 'Face-to-face preliminary examination.',
   },
 ]
+
+const documents = [
+  {
+    title: 'IEEE Report',
+    filename: 'Exercise PTP1 – TULIO (2) (1).pdf',
+    meta: '5-page PDF',
+    previewPath: 'documents/prelim/pt-p1-ieee-report.pdf#view=FitH',
+    filePath: 'documents/prelim/pt-p1-ieee-report.pdf',
+    fileLabel: 'Open PDF',
+  },
+  {
+    title: 'Supporting Screenshots',
+    filename: 'Exercise PTP1 (SS)– TULIO (1).pdf',
+    meta: '2-page PDF',
+    previewPath: 'documents/prelim/pt-p1-supporting-screenshots.pdf#view=FitH',
+    filePath: 'documents/prelim/pt-p1-supporting-screenshots.pdf',
+    fileLabel: 'Open PDF',
+  },
+  {
+    title: 'Training Data and Test Results',
+    filename: 'Exercise PTP1 – TULIO (1).xlsx',
+    meta: 'Excel workbook · 83 rows · 17 columns',
+    previewPath: 'documents/prelim/pt-p1-workbook-preview.html',
+    filePath: 'documents/prelim/pt-p1-workbook.xlsx',
+    fileLabel: 'Download Excel file',
+    isSpreadsheet: true,
+  },
+]
+
+const notebookNotice = (
+  <div className="notebook-notice">
+    <span aria-hidden="true">i</span>
+    <p>
+      This activity was completed face-to-face in a blue notebook. The notebook has not yet been
+      returned because continuous rain caused class suspensions.
+    </p>
+  </div>
+)
 
 function PrelimPage() {
   const [openFolder, setOpenFolder] = useState('Exercises')
@@ -68,25 +72,13 @@ function PrelimPage() {
 
       <section className="prelim-overview" aria-labelledby="prelim-title">
         <div className="prelim-intro">
-          <div className="term-label">
-            <span aria-hidden="true">[term]</span>
-            <h2>Weeks 1–6</h2>
-          </div>
           <h1 id="prelim-title">Prelim</h1>
-          <p>Foundations term. Focused on environment setup, version control, and the fundamentals of structured problem solving.</p>
+          <p>Preliminary-term activities, reports, supporting files, quizzes, and examinations.</p>
         </div>
-        <dl className="prelim-stats">
-          {stats.map(([value, label]) => (
-            <div key={label} className={label === 'graded' ? 'is-accent' : ''}>
-              <dd>{value}</dd>
-              <dt>{label}</dt>
-            </div>
-          ))}
-        </dl>
       </section>
 
       <p className="folder-prompt">
-        <span>$</span> ls ./prelim/ — <strong>click a folder to expand</strong>
+        <span>$</span> ls <strong>./prelim</strong>
       </p>
 
       <div className="prelim-folders">
@@ -95,8 +87,27 @@ function PrelimPage() {
             key={folder.title}
             folder={folder}
             isOpen={openFolder === folder.title}
-            onToggle={() => setOpenFolder(openFolder === folder.title ? null : folder.title)}
-          />
+            onToggle={() => setOpenFolder(openFolder === folder.title ? '' : folder.title)}
+          >
+            {folder.title === 'Exercises' ? (
+              <article className="prelim-activity" aria-labelledby="pt-p1-title">
+                <div className="prelim-activity-heading">
+                  <span>Exercise 1</span>
+                  <strong>Submitted</strong>
+                </div>
+                <h2 id="pt-p1-title">PT-P1: Deep Learning (Neural Networks)</h2>
+                <p>
+                  Customer sentiment classification using a no-code deep learning neural network,
+                  with its IEEE report, supporting screenshots, and workbook data.
+                </p>
+                <div className="document-preview-list">
+                  {documents.map((document) => (
+                    <DocumentPreview key={document.title} {...document} />
+                  ))}
+                </div>
+              </article>
+            ) : notebookNotice}
+          </PrelimFolder>
         ))}
       </div>
     </div>

@@ -1,6 +1,6 @@
 import PrelimItem from './PrelimItem.jsx'
 
-function PrelimFolder({ folder, isOpen, onToggle }) {
+function PrelimFolder({ folder, isOpen, onToggle, children }) {
   const panelId = `prelim-${folder.title.toLowerCase().replaceAll(' ', '-')}`
 
   return (
@@ -24,15 +24,14 @@ function PrelimFolder({ folder, isOpen, onToggle }) {
       </button>
 
       <div className="folder-content" id={panelId} hidden={!isOpen}>
-        {folder.items?.length ? (
+        {children ?? (folder.items?.length ? (
           folder.items.map((item) => <PrelimItem key={item.code} {...item} />)
         ) : (
           <p className="folder-empty">Files will be added soon.</p>
-        )}
+        ))}
       </div>
     </section>
   )
 }
 
 export default PrelimFolder
-
