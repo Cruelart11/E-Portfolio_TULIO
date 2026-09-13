@@ -1,16 +1,16 @@
 const navItems = [
-  { label: 'Home', href: '#home', active: true },
-  { label: 'Course Expectation', disabled: true },
+  { label: 'Home', href: '#/', page: 'home' },
+  { label: 'Course Expectation', href: '#/course-expectation', page: 'course-expectation' },
   { label: 'Prelim', disabled: true },
   { label: 'Midterm', disabled: true },
   { label: 'Finals', disabled: true },
 ]
 
-function Header() {
+function Header({ currentPage }) {
   return (
     <header className="site-header">
       <div className="header-inner">
-        <a className="brand" href="#home" aria-label="Juan Miguel Santos — home">
+        <a className="brand" href="#/" aria-label="Juan Miguel Santos — home">
           <span className="brand-mark" aria-hidden="true">{'</>'}</span>
           <span className="brand-name">
             jm<span>.</span>santos<span className="cursor">_</span>
@@ -26,8 +26,12 @@ function Header() {
                     {item.label}
                   </span>
                 ) : (
-                  <a className={`nav-link${item.active ? ' is-active' : ''}`} href={item.href}>
-                    {item.active && <span className="nav-caret" aria-hidden="true">▍</span>}
+                  <a
+                    className={`nav-link${currentPage === item.page ? ' is-active' : ''}`}
+                    href={item.href}
+                    aria-current={currentPage === item.page ? 'page' : undefined}
+                  >
+                    {currentPage === item.page && <span className="nav-caret" aria-hidden="true">▍</span>}
                     {item.label}
                   </a>
                 )}
@@ -41,4 +45,3 @@ function Header() {
 }
 
 export default Header
-

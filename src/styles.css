@@ -359,6 +359,108 @@ p, h1, h2, h3, dl, dd { margin: 0; }
 }
 
 .contact-card dd { overflow: hidden; margin-top: 4px; color: var(--text); text-overflow: ellipsis; }
+
+.course-page {
+  padding-bottom: 112px;
+}
+
+.course-intro {
+  max-width: 672px;
+  padding-top: 48px;
+}
+
+.course-intro h1 {
+  margin-top: 16px;
+  color: var(--text);
+  font: 800 clamp(40px, 5vw, 48px)/1 var(--display);
+  letter-spacing: -1.5px;
+}
+
+.course-intro > p {
+  margin-top: 16px;
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1.625;
+}
+
+.expectations-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  padding-top: 48px;
+}
+
+.expectation-card {
+  padding: 24px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel);
+}
+
+.expectation-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.expectation-heading > span {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--green);
+  background: var(--panel-raised);
+  font: 400 14px/20px var(--mono);
+}
+
+.expectation-heading h2 {
+  color: var(--text);
+  font: 700 18px/28px var(--display);
+}
+
+.expectation-card > p {
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.625;
+}
+
+.commitments-panel {
+  margin-top: 48px;
+  padding: 32px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel-raised);
+}
+
+.commitments-panel h2 {
+  color: var(--blue);
+  font: 400 14px/20px var(--mono);
+}
+
+.commitments-panel ul {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 32px;
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.commitments-panel li {
+  display: flex;
+  gap: 12px;
+  color: var(--muted);
+  font: 400 14px/20px var(--mono);
+}
+
+.commitments-panel li span {
+  color: var(--green);
+}
+
 .site-footer { border-top: 1px solid var(--border); }
 
 .footer-inner {
@@ -383,6 +485,8 @@ a:focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; }
   .profile-window { width: min(100%, 520px); }
   .profile-placeholder { min-height: 440px; }
   .about-layout { grid-template-columns: 1fr; gap: 32px; }
+  .expectations-grid { grid-template-columns: 1fr; }
+  .commitments-panel ul { grid-template-columns: 1fr; }
   .contact-grid { grid-template-columns: 1fr; }
 }
 
@@ -396,6 +500,12 @@ a:focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; }
   .profile-placeholder { min-height: 360px; }
   .status-badge { right: 12px; bottom: -17px; left: 12px; text-align: center; }
   .content-section { padding-top: 80px; }
+  .course-page { padding-bottom: 80px; }
+  .course-intro { padding-top: 40px; }
+  .course-intro h1 { font-size: 40px; }
+  .course-intro > p { font-size: 16px; }
+  .expectation-card { padding: 20px; }
+  .commitments-panel { padding: 24px 20px; }
   .skills-grid { grid-template-columns: 1fr; }
   .contact-section { margin: 80px 0; padding: 20px; }
   .footer-inner { align-items: flex-start; flex-direction: column; }
