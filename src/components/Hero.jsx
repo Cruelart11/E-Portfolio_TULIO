@@ -1,17 +1,12 @@
-function ProfilePlaceholder() {
+import profileImage from '../assets/profile.jpg'
+
+function ProfileImage() {
   return (
-    <div className="profile-window" aria-label="Profile image placeholder">
+    <div className="profile-window">
       <div className="window-bar" aria-hidden="true">
         <span className="window-title">profile.jpg</span>
       </div>
-      <div className="profile-placeholder">
-        <div className="avatar-code" aria-hidden="true">
-          <span className="avatar-bracket">{'{'}</span>
-          <span className="avatar-initials">JT</span>
-          <span className="avatar-bracket">{'}'}</span>
-        </div>
-        <p>drop profile.jpg here</p>
-      </div>
+      <img className="profile-image" src={profileImage} alt="Portrait of Justine Bradley Tulio" />
     </div>
   )
 }
@@ -35,7 +30,7 @@ function Hero() {
           <a className="button button-secondary" href="#/course-expectation">Course expectations</a>
         </div>
       </div>
-      <ProfilePlaceholder />
+      <ProfileImage />
     </section>
   )
 }
