@@ -10,10 +10,10 @@ function Header({ currentPage }) {
   return (
     <header className="site-header">
       <div className="header-inner">
-        <a className="brand" href="#/" aria-label="Juan Miguel Santos — home">
+        <a className="brand" href="#/" aria-label="Justine Bradley Tulio — home">
           <span className="brand-mark" aria-hidden="true">{'</>'}</span>
           <span className="brand-name">
-            jm<span>.</span>santos<span className="cursor">_</span>
+            jb<span>.</span>tulio<span className="cursor">_</span>
           </span>
         </a>
 

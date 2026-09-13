@@ -2,21 +2,20 @@ export const routes = {
   home: {
     hash: '#/',
     label: 'Home',
-    title: 'Juan Miguel Santos | E-Portfolio',
+    title: 'Justine Bradley Tulio | E-Portfolio',
   },
   'course-expectation': {
     hash: '#/course-expectation',
     label: 'Course Expectation',
-    title: 'Course Expectation | Juan Miguel Santos',
+    title: 'Course Expectation | Justine Bradley Tulio',
   },
   prelim: {
     hash: '#/prelim',
     label: 'Prelim',
-    title: 'Prelim | Juan Miguel Santos',
+    title: 'Prelim | Justine Bradley Tulio',
   },
 }
 
 export function getPageFromHash(hash) {
   return Object.entries(routes).find(([, route]) => route.hash === hash)?.[0] ?? 'home'
 }
-

@@ -1,14 +1,12 @@
 const contacts = [
-  ['email', 'jm.santos@school.edu'],
-  ['github', 'github.com/jmsantos'],
-  ['linkedin', 'in/jmsantos-it'],
+  ['email', 'justinebradley.tulio@my.jru.edu'],
 ]
 
 function Contact() {
   return (
     <section className="contact-section" id="contact" aria-labelledby="contact-title">
       <h2 className="command" id="contact-title">$ contact --me</h2>
-      <dl className="contact-grid">
+      <dl className="contact-grid contact-grid-single">
         {contacts.map(([label, value]) => (
           <div className="contact-card" key={label}>
             <dt>{label}</dt>
@@ -21,4 +19,3 @@ function Contact() {
 }
 
 export default Contact
-

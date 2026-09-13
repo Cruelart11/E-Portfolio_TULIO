@@ -1,7 +1,6 @@
 import About from '../components/About.jsx'
 import Contact from '../components/Contact.jsx'
 import Hero from '../components/Hero.jsx'
-import Toolbox from '../components/Toolbox.jsx'
 
 function HomePage() {
   return (
@@ -11,11 +10,9 @@ function HomePage() {
       </div>
       <Hero />
       <About />
-      <Toolbox />
       <Contact />
     </div>
   )
 }
 
 export default HomePage
-
