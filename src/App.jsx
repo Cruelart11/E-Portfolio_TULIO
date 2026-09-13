@@ -3,6 +3,7 @@ import Footer from './components/Footer.jsx'
 import Header from './components/Header.jsx'
 import CourseExpectationPage from './pages/CourseExpectationPage.jsx'
 import HomePage from './pages/HomePage.jsx'
+import MidtermPage from './pages/MidtermPage.jsx'
 import PrelimPage from './pages/PrelimPage.jsx'
 import { getPageFromHash, routes } from './routes.js'
 
@@ -10,6 +11,7 @@ const pageComponents = {
   home: HomePage,
   'course-expectation': CourseExpectationPage,
   prelim: PrelimPage,
+  midterm: MidtermPage,
 }
 
 function App() {

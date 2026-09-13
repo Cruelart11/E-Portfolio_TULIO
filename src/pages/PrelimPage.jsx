@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import DocumentPreview from '../components/DocumentPreview.jsx'
 import PrelimFolder from '../components/PrelimFolder.jsx'
+import TermActivity from '../components/TermActivity.jsx'
 
 const folders = [
   {
@@ -108,36 +108,6 @@ const writtenWorkOneDocuments = [
   },
 ]
 
-function Activity({ type, number, title, description, reflection, documents }) {
-  const activitySlug = `${type}-${number}`.toLowerCase().replaceAll(' ', '-')
-  const titleId = `${activitySlug}-title`
-
-  return (
-    <article className="prelim-activity" aria-labelledby={titleId}>
-      <div className="prelim-activity-heading">
-        <span>{type} {number}</span>
-        <strong>Submitted</strong>
-      </div>
-      <h2 id={titleId}>{title}</h2>
-      <div className="activity-context">
-        <section aria-labelledby={`${activitySlug}-description`}>
-          <h3 id={`${activitySlug}-description`}>Description</h3>
-          <p>{description}</p>
-        </section>
-        <section aria-labelledby={`${activitySlug}-reflection`}>
-          <h3 id={`${activitySlug}-reflection`}>Learning Reflection</h3>
-          <p>{reflection}</p>
-        </section>
-      </div>
-      <div className="document-preview-list">
-        {documents.map((document) => (
-          <DocumentPreview key={`${activitySlug}-${document.title}`} {...document} />
-        ))}
-      </div>
-    </article>
-  )
-}
-
 const notebookNotice = (
   <div className="notebook-notice">
     <span aria-hidden="true">i</span>
@@ -178,7 +148,7 @@ function PrelimPage() {
           >
             {folder.title === 'Exercises' ? (
               <>
-                <Activity
+                <TermActivity
                   type="Exercise"
                   number="1"
                   title="PT-P1: Deep Learning (Neural Networks)"
@@ -186,7 +156,7 @@ function PrelimPage() {
                   reflection="Through this activity, I learned how data preparation, neural-network training, testing, and documentation work together when building a customer sentiment classifier. The results showed me that a model should not be judged by accuracy alone because the quality of its data and the way its performance is evaluated also affect whether its predictions are useful. This exercise helped me better understand the importance of reviewing both the model's process and its results before applying it to a real problem."
                   documents={exerciseOneDocuments}
                 />
-                <Activity
+                <TermActivity
                   type="Exercise"
                   number="2"
                   title="PT-P2 - Neural Network Training and Testing (HyperParameters)"
@@ -196,7 +166,7 @@ function PrelimPage() {
                 />
               </>
             ) : folder.title === 'Written Works' ? (
-              <Activity
+              <TermActivity
                 type="Written Work"
                 number="1"
                 title="Natural Language Processing Concepts"

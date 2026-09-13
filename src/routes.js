@@ -14,6 +14,11 @@ export const routes = {
     label: 'Prelim',
     title: 'Prelim | Justine Bradley Tulio',
   },
+  midterm: {
+    hash: '#/midterm',
+    label: 'Midterm',
+    title: 'Midterm | Justine Bradley Tulio',
+  },
 }
 
 export function getPageFromHash(hash) {

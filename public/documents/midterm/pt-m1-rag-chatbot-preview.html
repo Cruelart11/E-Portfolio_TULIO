@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PT-M1 (Building and Evaluating a RAG Chatbot)</title>
+    <style>
+      :root { color-scheme: dark; font-family: Arial, sans-serif; }
+      * { box-sizing: border-box; }
+      body { max-width: 980px; margin: 0 auto; padding: 24px; color: #e6edf3; background: #0d1117; }
+      .preview-header { margin-bottom: 20px; padding: 18px; border: 1px solid #30363d; border-radius: 10px; background: #161b22; }
+      .preview-header p, .cell-label { margin: 0; color: #8b98ac; font: 12px/18px monospace; }
+      .preview-header h1 { margin: 6px 0 0; font-size: 24px; line-height: 1.25; }
+      .cell { margin: 0 0 14px; padding: 18px; border: 1px solid #30363d; border-radius: 10px; background: #10151d; }
+      .markdown-cell h2, .markdown-cell h3, .markdown-cell h4 { margin: 0 0 12px; color: #7ee787; line-height: 1.3; }
+      .markdown-cell h2 { font-size: 22px; }
+      .markdown-cell h3 { font-size: 18px; }
+      .markdown-cell h4 { font-size: 16px; }
+      .markdown-cell p, .markdown-cell li { color: #c9d1d9; font-size: 14px; line-height: 1.65; }
+      .markdown-cell p { margin: 0; }
+      .markdown-cell p + p, .markdown-cell ul + p, .markdown-cell p + ul { margin-top: 12px; }
+      .markdown-cell code { padding: 2px 5px; border-radius: 4px; color: #58a6ff; background: #0a0e14; font: 12px/1.5 monospace; }
+      a { color: #58a6ff; }
+      pre { overflow: auto; margin: 8px 0 0; padding: 14px; border-radius: 7px; color: #e6edf3; background: #0a0e14; font: 12px/1.55 monospace; white-space: pre; }
+      .output { margin-top: 10px; border-left: 3px solid #58a6ff; white-space: pre-wrap; }
+      .output-image { display: block; max-width: 100%; margin-top: 10px; border-radius: 6px; }
+      @media (max-width: 600px) { body { padding: 12px; } .cell, .preview-header { padding: 14px; } }
+    </style>
+  </head>
+  <body>
+    <header class="preview-header">
+      <p>Read-only notebook preview · 24 cells</p>
+      <h1>PT-M1 (Building and Evaluating a RAG Chatbot)</h1>
+    </header>
+    <main><section class="cell markdown-cell"><h2>Retrieval-Augmented Generation (RAG) Laboratory Exercise</h2><p>Doing this lab exercise, I have encountered some issues such as the model and package dependencies. The original model, <code>llama-3.1-8b-instant</code>, was replaced with <code>openai/gpt-oss-20b</code> because the former was deprecated by Groq for the intended setup. The package installation was also adjusted to use specific compatible versions because the original environment setup caused dependency issues when using the latest package releases.</p><h2>NOTE: The task 1 to 3 are located at the bottom of this notebook.</h2></section><section class="cell markdown-cell"><h3>Cell 1: Environment Setup and Package Installation</h3><p>This cell prepares the Google Colab environment by installing all libraries required for the RAG activity. In the original version, the packages were installed without specific versions, which meant Colab would automatically use the latest available releases. When I worked with the notebook, this caused dependency compatibility problems among the LangChain-related packages.</p><p>To make the environment more stable, the updated cell installs fixed versions of <code>langchain</code>, <code>langchain-community</code>, <code>langchain-groq</code>, and <code>langchain-huggingface</code>. These packages work together to handle the core RAG process, community integrations, Groq model access, and Hugging Face embeddings.</p><p>The remaining packages support other parts of the workflow. <code>chromadb</code> is used as the vector database, <code>pypdf</code> supports PDF documents, and <code>unstructured[pdf]</code> provides additional PDF parsing capability. Overall, this cell makes sure the required environment is ready before the rest of the notebook runs.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 1</p><pre><code># Cell 1: Environment Setup &amp; Package Installation
+
+!pip install -q \
+    &quot;langchain==0.3.27&quot; \
+    &quot;langchain-community==0.3.27&quot; \
+    &quot;langchain-groq==0.3.8&quot; \
+    &quot;langchain-huggingface==0.3.1&quot; \
+    chromadb \
+    pypdf \
+    &quot;unstructured[pdf]&quot;</code></pre><div class="outputs"><pre class="output">[2K     [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m52.0/52.0 kB[0m [31m2.8 MB/s[0m eta [36m0:00:00[0m
+[2K     [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m981.5/981.5 kB[0m [31m17.7 MB/s[0m eta [36m0:00:00[0m
+[?25h  Preparing metadata (setup.py) ... [?25l[?25hdone
+[2K     [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m66.5/66.5 kB[0m [31m3.0 MB/s[0m eta [36m0:00:00[0m
+[2K     [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m80.3/80.3 kB[0m [31m4.8 MB/s[0m eta [36m0:00:00[0m
+[2K     [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m62.4/62.4 kB[0m [31m3.3 MB/s[0m eta [36m0:00:00[0m
+[2K   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m1.0/1.0 MB[0m [31m38.1 MB/s[0m eta [36m0:00:00[0m
+[2K   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m2.5/2.5 MB[0m [31m64.5 MB/s[0m eta [36m0:00:00[0m
+[2K   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m23.3/23.3 MB[0m [31m51.9 MB/s[0m eta [36m0:00:00[0m
+[2K   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m393.8/393.8 kB[0m [31m16.4 MB/s[0m eta [36m0:00:00[0m
+[2K   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m278.2/278.2 kB[0m [31m15.3 MB/s[0m eta [36m0:00:00[0m
+[2K   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m109.9/109.9 kB[0m [31m4.9 MB/s[0m eta [36m0:00:00[0m
+[2K   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m608.4/608.4 kB[0m [31m28.1 MB/s[0m eta [36m0:00:00[0m
+[2K   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m542.2/542.2 kB[0m [31m28.4 MB/s[0m eta [36m0:00:00[0m
+[2K   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m137.5/137.5 kB[0m [31m6.8 MB/s[0m eta [36m0:00:00[0m
+[2K   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m453.8/453.8 kB[0m [31m20.6 MB/s[0m eta [36m0:00:00[0m
+[2K   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m4.6/4.6 MB[0m [31m71.2 MB/s[0m eta [36m0:00:00[0m
+[2K   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m461.3/461.3 kB[0m [31m22.5 MB/s[0m eta [36m0:00:00[0m
+[2K   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m23.1/23.1 MB[0m [31m26.1 MB/s[0m eta [36m0:00:00[0m
+[2K   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m72.5/72.5 kB[0m [31m3.5 MB/s[0m eta [36m0:00:00[0m
+[2K   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m137.2/137.2 kB[0m [31m8.4 MB/s[0m eta [36m0:00:00[0m
+[2K   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m60.0/60.0 kB[0m [31m2.2 MB/s[0m eta [36m0:00:00[0m
+[2K   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m204.6/204.6 kB[0m [31m12.3 MB/s[0m eta [36m0:00:00[0m
+[2K   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m6.6/6.6 MB[0m [31m59.4 MB/s[0m eta [36m0:00:00[0m
+[2K   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m1.5/1.5 MB[0m [31m41.5 MB/s[0m eta [36m0:00:00[0m
+[2K   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m2.3/2.3 MB[0m [31m48.4 MB/s[0m eta [36m0:00:00[0m
+[2K   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m155.6/155.6 kB[0m [31m8.7 MB/s[0m eta [36m0:00:00[0m
+[2K   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m95.7/95.7 kB[0m [31m4.9 MB/s[0m eta [36m0:00:00[0m
+[2K   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m69.4/69.4 kB[0m [31m4.3 MB/s[0m eta [36m0:00:00[0m
+[2K   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m60.6/60.6 kB[0m [31m1.7 MB/s[0m eta [36m0:00:00[0m
+[2K   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m167.9/167.9 kB[0m [31m5.8 MB/s[0m eta [36m0:00:00[0m
+[2K   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m3.2/3.2 MB[0m [31m52.1 MB/s[0m eta [36m0:00:00[0m
+[2K   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m73.1/73.1 kB[0m [31m2.9 MB/s[0m eta [36m0:00:00[0m
+[2K   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m169.6/169.6 kB[0m [31m8.2 MB/s[0m eta [36m0:00:00[0m
+[2K   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m57.5/57.5 kB[0m [31m3.3 MB/s[0m eta [36m0:00:00[0m
+[2K   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m1.6/1.6 MB[0m [31m37.3 MB/s[0m eta [36m0:00:00[0m
+[2K   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m51.0/51.0 kB[0m [31m3.0 MB/s[0m eta [36m0:00:00[0m
+[2K   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m10.0/10.0 MB[0m [31m74.8 MB/s[0m eta [36m0:00:00[0m
+[2K   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m19.1/19.1 MB[0m [31m21.5 MB/s[0m eta [36m0:00:00[0m
+[2K   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m66.5/66.5 kB[0m [31m2.9 MB/s[0m eta [36m0:00:00[0m
+[2K   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m3.7/3.7 MB[0m [31m62.0 MB/s[0m eta [36m0:00:00[0m
+[2K   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m35.3/35.3 MB[0m [31m15.2 MB/s[0m eta [36m0:00:00[0m
+[2K   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m114.6/114.6 kB[0m [31m7.1 MB/s[0m eta [36m0:00:00[0m
+[?25h  Building wheel for langdetect (setup.py) ... [?25l[?25hdone
+[31mERROR: pip&#x27;s dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
+google-colab 1.0.0 requires requests==2.32.4, but you have requests 2.34.2 which is incompatible.
+langgraph-sdk 0.4.3 requires langchain-core&lt;2,&gt;=1.4.0, but you have langchain-core 0.3.86 which is incompatible.
+langgraph 1.2.11 requires langchain-core&lt;2,&gt;=1.4.7, but you have langchain-core 0.3.86 which is incompatible.
+google-adk 2.7.1 requires opentelemetry-api&lt;=1.42.1,&gt;=1.39, but you have opentelemetry-api 1.44.0 which is incompatible.
+google-adk 2.7.1 requires opentelemetry-sdk&lt;=1.42.1,&gt;=1.39, but you have opentelemetry-sdk 1.44.0 which is incompatible.
+langgraph-prebuilt 1.1.0 requires langchain-core&gt;=1.3.1, but you have langchain-core 0.3.86 which is incompatible.[0m[31m
+[0m</pre></div></section><section class="cell markdown-cell"><h3>Cell 2: Secure API Key Configuration</h3><p>This cell securely configures the Groq API key that will be needed when the language model is initialized later. It starts by importing <code>os</code>, which allows the code cell to work with environment variables, and <code>getpass</code>, which provides a safer way to enter sensitive information.</p><p>The condition checks whether <code>GROQ_API_KEY</code> is already available in the current environment. If it is not, <code>getpass.getpass()</code> prompts for the API key without displaying the actual characters being entered. The value is then stored in <code>os.environ[&quot;GROQ_API_KEY&quot;]</code>, allowing the Groq integration to use it automatically.</p><p>The final print statement confirms that the API key configuration was completed. I find this approach more appropriate than typing the key directly into the notebook because the actual API key does not appear visibly in the code cell or its output.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 2</p><pre><code># Cell 2: Secure API Key Configuration
+
+import os
+import getpass
+
+# Prompts for API key securely without saving or echoing plain text
+if &quot;GROQ_API_KEY&quot; not in os.environ:
+    os.environ[&quot;GROQ_API_KEY&quot;] = getpass.getpass(
+        &quot;Enter your Groq API Key: &quot;
+    )
+
+print(&quot;Groq API key configured successfully!&quot;)</code></pre><div class="outputs"><pre class="output">Enter your Groq API Key: ··········
+Groq API key configured successfully!
+</pre></div></section><section class="cell markdown-cell"><h3>Cell 3: Loading Custom Data and Chunking</h3><p>This cell loads the custom documents that will serve as the knowledge source of the RAG chatbot. It first imports <code>DirectoryLoader</code>, which reads files from a directory, and <code>RecursiveCharacterTextSplitter</code>, which is used to divide longer document contents into smaller chunks.</p><p>The <code>my_data</code> folder is created using <code>os.makedirs()</code>. The option <code>exist_ok=True</code> allows the cell to run even if the folder already exists. <code>DirectoryLoader</code> then scans the folder using the pattern <code>**/*.*</code>, which allows it to find different file types and files located inside subfolders. Calling <code>loader.load()</code> stores the loaded documents in <code>raw_documents</code>.</p><p>The next part prepares the text for retrieval. <code>RecursiveCharacterTextSplitter</code> uses a <code>chunk_size</code> of 500 and a <code>chunk_overlap</code> of 50. This means each document is divided into smaller sections while keeping a small amount of shared text between neighboring chunks. That overlap helps preserve context that might otherwise be separated at a chunk boundary.</p><p>Finally, <code>split_documents()</code> creates the processed chunks stored in <code>documents</code>, and the print statement reports both the number of original documents and the total number of chunks. This output is useful for checking whether the uploaded files were successfully loaded and processed.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 3</p><pre><code># Cell 3: Loading Custom Data &amp; Chunking
+
+from langchain_community.document_loaders import DirectoryLoader
+
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+
+
+# Create target data directory
+
+os.makedirs(&quot;my_data&quot;, exist_ok=True)
+
+
+# Load all documents from the directory
+
+loader = DirectoryLoader(&quot;my_data/&quot;, glob=&quot;**/*.*&quot;, show_progress=True)
+
+raw_documents = loader.load()
+
+
+# Split documents into smaller semantic chunks
+
+text_splitter = RecursiveCharacterTextSplitter(
+
+chunk_size=500,
+
+chunk_overlap=50
+
+)
+
+documents = text_splitter.split_documents(raw_documents)
+
+
+print(f&quot;Loaded {len(raw_documents)} raw document(s) and split into {len(documents)} chunks.&quot;)</code></pre><div class="outputs"><pre class="output">100%|██████████| 3/3 [00:00&lt;00:00, 46.82it/s]</pre><pre class="output">Loaded 3 raw document(s) and split into 20 chunks.
+</pre><pre class="output">
+</pre></div></section><section class="cell markdown-cell"><h3>Cell 4: Embedding Model and Vector Database Indexing</h3><p>This cell transforms the document chunks into embeddings and stores them in a Chroma vector database. It imports <code>HuggingFaceEmbeddings</code> for creating the numerical representations of the text and <code>Chroma</code> for storing and searching those representations.</p><p>The embedding model used is <code>all-MiniLM-L6-v2</code>. Instead of comparing only exact words, this model converts text into numerical vectors that represent semantic meaning. This makes it possible for the retriever to identify document chunks that are conceptually related to a user&#x27;s question.</p><p><code>Chroma.from_documents()</code> takes the chunks stored in <code>documents</code> and generates embeddings for each one using the selected model. The resulting vector database is stored in <code>vectorstore</code>.</p><p>The last line converts the vector store into a retriever. Setting <code>k</code> to 3 means the retriever will return the three chunks it considers most relevant whenever a question is submitted. These retrieved chunks will later become the context used by the language model.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 4</p><pre><code># Cell 4: Embedding Model &amp; Vector DB Indexing
+
+from langchain_huggingface import HuggingFaceEmbeddings
+
+from langchain_community.vectorstores import Chroma
+
+
+# Initialize open-source embedding model
+
+embeddings = HuggingFaceEmbeddings(model_name=&quot;all-MiniLM-L6-v2&quot;)
+
+
+# Store embeddings into Chroma vector database
+
+vectorstore = Chroma.from_documents(
+
+documents=documents,
+
+embedding=embeddings
+
+)
+
+
+# Set vectorstore as a retriever
+
+retriever = vectorstore.as_retriever(search_kwargs={&quot;k&quot;: 3})</code></pre><div class="outputs"><pre class="output">Loading weights:   0%|          | 0/103 [00:00&lt;?, ?it/s]</pre></div></section><section class="cell markdown-cell"><h3>Cell 5: Model Initialization and Domain System Prompt</h3><p>This cell prepares the language model and defines the instructions that guide its responses. <code>ChatGroq</code> is imported to access the selected model through Groq, while <code>ChatPromptTemplate</code> is used to organize the system message and the user&#x27;s input.</p><p>The original laboratory model, <code>llama-3.1-8b-instant</code>, remains visible as a commented line for reference. The active model is now <code>openai/gpt-oss-20b</code>, which replaces the deprecated model while keeping the same Groq-based setup. The <code>temperature</code> is set to 0 so that the responses are more consistent and focused on the retrieved information rather than being highly variable.</p><p>The <code>system_prompt</code> establishes the main restriction of the chatbot. It tells the model to answer only from the provided context and to return a specific fallback message when the answer cannot be found. The <code>{context}</code> placeholder will later contain the retrieved document chunks.</p><p>Finally, <code>ChatPromptTemplate.from_messages()</code> combines the system instruction with the user&#x27;s question represented by <code>{input}</code>. This prepares the message structure that will be used when the RAG pipeline is assembled.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 5</p><pre><code># Cell 5: Model Initialization and Domain System Prompt
+
+from langchain_groq import ChatGroq
+
+from langchain_core.prompts import ChatPromptTemplate
+
+
+# Initialize the SLM
+
+llm = ChatGroq(
+
+#model_name=&quot;llama-3.1-8b-instant&quot;,
+model_name=&quot;openai/gpt-oss-20b&quot;,
+
+temperature=0
+
+)
+
+
+# Custom domain system prompt
+
+system_prompt = (
+
+&quot;You are a specialized AI assistant for the user&#x27;s uploaded domain.\n&quot;
+
+&quot;Answer questions strictly using ONLY the provided context below.\n&quot;
+
+&quot;If the answer cannot be found in the context, reply: &#x27;I cannot answer based on the provided domain data.&#x27;\n\n&quot;
+
+&quot;Context:\n{context}&quot;
+
+)
+
+
+prompt = ChatPromptTemplate.from_messages([
+
+(&quot;system&quot;, system_prompt),
+
+(&quot;human&quot;, &quot;{input}&quot;),
+
+])</code></pre></section><section class="cell markdown-cell"><h3>Cell 6: Pipeline Assembly</h3><p>This cell connects the retrieval process with the language model so that the separate components work together as a complete RAG pipeline. It imports <code>create_retrieval_chain</code> and <code>create_stuff_documents_chain</code>, which are responsible for linking the retrieved document chunks to the prompt and model.</p><p><code>create_stuff_documents_chain(llm, prompt)</code> creates <code>combine_docs_chain</code>. This component takes the retrieved chunks and places their contents into the <code>{context}</code> section of the prompt before sending the completed prompt to the language model.</p><p>The next line creates <code>rag_chain</code> using <code>create_retrieval_chain()</code>. This connects the retriever from the previous cell with <code>combine_docs_chain</code>. When a user submits a question, the retriever first searches for relevant chunks, then those chunks are passed to the model as supporting context.</p><p>This cell is where the individual RAG components become one complete question-answering workflow.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 6</p><pre><code># Cell 6: Pipeline Assembly
+
+from langchain.chains import create_retrieval_chain
+
+from langchain.chains.combine_documents import create_stuff_documents_chain
+
+
+# Combine prompt and LLM to process context
+
+combine_docs_chain = create_stuff_documents_chain(llm, prompt)
+
+
+# Assemble full retrieval-augmented generation chain
+
+rag_chain = create_retrieval_chain(retriever, combine_docs_chain)</code></pre></section><section class="cell markdown-cell"><h3>Cell 7: Testing the Custom Domain Chatbot</h3><p>This final cell tests the completed RAG chain by sending a question through the retrieval and generation process. The selected query asks, <code>&quot;What to do during flooding?&quot;</code></p><p>The question is stored in <code>user_query</code> and passed to <code>rag_chain.invoke()</code> using the <code>input</code> key. The returned result is saved in <code>response</code>, which contains both the generated answer and the chunks retrieved from the vector database.</p><p><code>response[&quot;answer&quot;]</code> displays the model&#x27;s final response. If the uploaded domain documents do not contain information about the Moon landing, this question also works as a useful out-of-domain test. Based on the system prompt, the model should avoid answering from unrelated outside knowledge and instead use the specified fallback response when the information is not available in the retrieved context.</p><p>The last loop goes through <code>response[&quot;context&quot;]</code> and prints the source of each retrieved chunk. This makes it possible to observe which document files were selected by the retriever and provides a simple way to inspect the source information behind the model&#x27;s response.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 7</p><pre><code># Cell 7: Testing Your Custom Domain Chatbot
+
+
+# Test Case 1: In-Domain Query
+
+user_query = &quot;What to do during flooding?&quot;
+
+response = rag_chain.invoke({&quot;input&quot;: user_query})
+
+
+print(&quot;--- DOMAIN QUERY ANSWER ---&quot;)
+
+print(response[&quot;answer&quot;])
+
+
+print(&quot;\n--- RETRIEVED SOURCE CHUNKS ---&quot;)
+
+for i, doc in enumerate(response[&quot;context&quot;]):
+
+    print(f&quot;Chunk {i+1} Source:&quot;, doc.metadata.get(&quot;source&quot;, &quot;Unknown&quot;))</code></pre><div class="outputs"><pre class="output">--- DOMAIN QUERY ANSWER ---
+**During a flood:**
+
+- **Avoid** walking or driving through flooded areas.  
+- **Avoid** places that flood quickly or frequently experience flash floods.  
+- **Secure** your home before evacuating: turn off the main electrical switch and close windows and doors if it is safe to do so.  
+- **Evacuate** only when authorities announce it.  
+- **Do not leave pets restrained**; release them or take them with you during evacuation.
+
+--- RETRIEVED SOURCE CHUNKS ---
+Chunk 1 Source: my_data/pasig_flood_and_typhoon_preparedness.txt
+Chunk 2 Source: my_data/pasig_flood_and_typhoon_preparedness.txt
+Chunk 3 Source: my_data/pasig_flood_and_typhoon_preparedness.txt
+</pre></div></section><section class="cell markdown-cell"><h3>Practical Experiments &amp; Deliverables</h3></section><section class="cell markdown-cell"><h3>Task 1: Domain &amp; Dataset Description</h3><p>Chosen Domain</p><p>The chosen domain for this RAG chatbot is Disaster Preparedness and Emergency Information for Pasig City. The dataset focuses on practical information that residents may need before or during emergency situations, particularly floods, typhoons, fires, and earthquakes. It also contains Pasig City barangay emergency contact numbers and evacuation center locations.</p><p>Problem Statement</p><p>During emergencies and disasters, people need to access important information quickly, such as what actions to take, whom to contact, and where to evacuate. However, this information may be spread across different sources, making it harder to find the specific information needed at the moment.</p><p>This RAG chatbot is designed to retrieve relevant information from a small collection of Pasig City disaster preparedness and emergency documents. It allows a user to ask questions about emergency procedures, preparedness measures, barangay emergency hotlines, and evacuation center locations. The chatbot is instructed to answer using only the information available in the uploaded domain documents and to avoid providing an unsupported answer when the requested information is not found.</p><p>Source Files Uploaded to ./my_data/</p><p>The following source files are used as the knowledge base for the RAG chatbot:</p><p>pasig_fire_and_earthquake_preparedness.txt Contains earthquake safety procedures, fire prevention tips, cooking-oil or grease fire safety, and the PASS method for using a fire extinguisher. pasig_flood_and_typhoon_preparedness.txt Contains preparedness guidance for before, during, and after floods and typhoons, along with recommended emergency go-bag contents. pasig_barangay_emergency_hotlines_and_evacuation centers.txt Contains emergency contact numbers for different Pasig City barangays and listed evacuation center locations.</p><p>Together, these three text files provide the domain-specific information that will be loaded from the ./my_data/ directory, divided into smaller chunks, converted into embeddings, and retrieved by the RAG chatbot when answering relevant user questions.</p></section><section class="cell markdown-cell"><h4>Task 2: Out-of-Domain Fallback Test</h4><p>To test whether the chatbot follows the domain restriction defined in the system prompt, I asked a question that is completely unrelated to the uploaded Pasig City disaster preparedness and emergency information dataset.</p><h4>Test Query</h4><p><strong>Question:</strong> <code>Who was the first person to walk on the Moon, and in what year?</code></p><p>This question was intentionally selected because the uploaded dataset focuses on disaster preparedness, emergency procedures, barangay emergency hotlines, and evacuation centers in Pasig City. It does not contain information about space exploration or the Moon landing.</p><h4>Output</h4><p><code>I cannot answer based on the provided domain data.</code></p><h4>Verification</h4><p>The chatbot correctly returned the expected fallback message instead of answering the question using the language model&#x27;s general knowledge. This shows that the domain instruction is working as intended for this test. Although the language model may already have general knowledge about the Moon landing, it followed the system prompt and limited its response to information available from the retrieved domain context.</p><p>Therefore, the out-of-domain fallback test was <strong>successful</strong>.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 8</p><pre><code># Task 2: Out-of-Domain Fallback Test
+
+
+user_query = &quot;Who was the first person to walk on the Moon, and in what year?&quot;
+
+response = rag_chain.invoke({&quot;input&quot;: user_query})
+
+
+print(&quot;--- DOMAIN QUERY ANSWER ---&quot;)
+
+print(response[&quot;answer&quot;])
+
+
+print(&quot;\n--- RETRIEVED SOURCE CHUNKS ---&quot;)
+
+for i, doc in enumerate(response[&quot;context&quot;]):
+
+    print(f&quot;Chunk {i+1} Source:&quot;, doc.metadata.get(&quot;source&quot;, &quot;Unknown&quot;))</code></pre><div class="outputs"><pre class="output">--- DOMAIN QUERY ANSWER ---
+I cannot answer based on the provided domain data.
+
+--- RETRIEVED SOURCE CHUNKS ---
+Chunk 1 Source: my_data/pasig_barangay_emergency_hotlines_and_evacuation centers.txt
+Chunk 2 Source: my_data/pasig_barangay_emergency_hotlines_and_evacuation centers.txt
+Chunk 3 Source: my_data/pasig_barangay_emergency_hotlines_and_evacuation centers.txt
+</pre></div></section><section class="cell markdown-cell"><h3>Task 3: Hallucination Stress-Test</h3><p>For this task, I intentionally weakened the grounding controls of the chatbot to observe how the response would change.</p><h4>Step 1: Changed Parameters</h4><p>In Cell 5, I changed:</p><p><code>temperature=0</code></p><p>to:</p><p><code>temperature=1</code></p><p>I also removed the instruction:</p><p><code>If the answer cannot be found in the context, reply: &#x27;I cannot answer based on the provided domain data.&#x27;</code></p><p>This means the model was given more freedom in generating its response and was no longer explicitly instructed to return the fallback message when the answer was missing from the retrieved context.</p></section><section class="cell markdown-cell"><h4>Step 2: Re-ran Query</h4><p>I used the exact same question from Task 2:</p><p><strong>Question:</strong> <code>Who was the first person to walk on the Moon, and in what year?</code></p><p>Output: <code>The first person to walk on the Moon was Neil Armstrong, and he did so in 1969 (Apollo 11 mission).</code></p></section><section class="cell markdown-cell"><h4>Step 3: Observation and Compare</h4><p>The result was different from the baseline test in <code>Task 2</code>. With temperature=0 and the fallback instruction enabled, the chatbot responded with <code>&quot;I cannot answer based on the provided domain data.&quot;</code> This showed that the original configuration remained grounded when the requested information was not available in the dataset.</p><p>After changing the temperature to <code>1.0</code> and removing the explicit fallback instruction, the chatbot answered the Moon-landing question even though the retrieved Pasig City disaster preparedness documents do not contain information about Neil Armstrong, Apollo 11, or space exploration.</p><p>Although the generated answer is generally known to be factually correct, it is unsupported by the retrieved context used by this RAG system. For this experiment, this shows that the modified configuration became less grounded and introduced information outside the provided domain data.</p><p>The comparison also shows that increasing the temperature does not automatically cause hallucination by itself. However, together with removing the explicit fallback rule, the modified configuration provided less control over how the model handled information that was missing from the retrieved context. In this test, the original configuration was more reliable for keeping the chatbot within the boundaries of the uploaded dataset.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 9</p><pre><code># Task 3 Hallucination Stress-Test
+
+from langchain_groq import ChatGroq
+
+from langchain_core.prompts import ChatPromptTemplate
+
+
+# Initialize the SLM
+
+llm = ChatGroq(
+
+#model_name=&quot;llama-3.1-8b-instant&quot;,
+model_name=&quot;openai/gpt-oss-20b&quot;,
+
+temperature=1
+
+)
+
+
+# Custom domain system prompt
+
+system_prompt = (
+
+&quot;You are a specialized AI assistant for the user&#x27;s uploaded domain.\n&quot;
+
+&quot;Answer questions strictly using ONLY the provided context below.\n&quot;
+
+
+&quot;Context:\n{context}&quot;
+
+)
+
+
+prompt = ChatPromptTemplate.from_messages([
+
+(&quot;system&quot;, system_prompt),
+
+(&quot;human&quot;, &quot;{input}&quot;),
+
+])</code></pre></section><section class="cell code-cell"><p class="cell-label">Code cell 10</p><pre><code># Task 3: Hallucination Stress-Test
+
+
+user_query = &quot;Who was the first person to walk on the Moon, and in what year?&quot;
+
+response = rag_chain.invoke({&quot;input&quot;: user_query})
+
+
+print(&quot;--- DOMAIN QUERY ANSWER ---&quot;)
+
+print(response[&quot;answer&quot;])
+
+
+print(&quot;\n--- RETRIEVED SOURCE CHUNKS ---&quot;)
+
+for i, doc in enumerate(response[&quot;context&quot;]):
+
+    print(f&quot;Chunk {i+1} Source:&quot;, doc.metadata.get(&quot;source&quot;, &quot;Unknown&quot;))</code></pre><div class="outputs"><pre class="output">--- DOMAIN QUERY ANSWER ---
+The first person to walk on the Moon was **Neil Armstrong**, and he did so in **1969** (Apollo 11 mission).
+
+--- RETRIEVED SOURCE CHUNKS ---
+Chunk 1 Source: my_data/pasig_barangay_emergency_hotlines_and_evacuation centers.txt
+Chunk 2 Source: my_data/pasig_barangay_emergency_hotlines_and_evacuation centers.txt
+Chunk 3 Source: my_data/pasig_barangay_emergency_hotlines_and_evacuation centers.txt
+</pre></div></section></main>
+  </body>
+</html>
