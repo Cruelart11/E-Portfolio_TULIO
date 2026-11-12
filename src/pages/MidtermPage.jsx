@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import NotebookEvidence from '../components/NotebookEvidence.jsx'
 import PrelimFolder from '../components/PrelimFolder.jsx'
 import TermActivity from '../components/TermActivity.jsx'
 
@@ -15,14 +16,10 @@ const folders = [
     description: 'Written learning activities and reflection reports.',
   },
   {
-    title: 'Long Quiz',
-    icon: '?',
-    description: 'Midterm written assessment.',
-  },
-  {
-    title: 'Midterm Exam',
-    icon: '★',
-    description: 'Midterm examination.',
+    title: 'Long Quiz and Midterm Exam',
+    count: 'blue notebook',
+    icon: 'Q/E',
+    description: 'Combined face-to-face long quiz and midterm examination.',
   },
 ]
 
@@ -72,16 +69,17 @@ function MidtermPage() {
       <div className="prelim-folders">
         {folders.map((folder) => {
           const isExercises = folder.title === 'Exercises'
+          const isWrittenWorks = folder.title === 'Written Works'
 
           return (
             <PrelimFolder
               key={folder.title}
               folder={folder}
               isOpen={openFolder === folder.title}
-              isEmpty={!isExercises}
+              isEmpty={isWrittenWorks}
               onToggle={() => setOpenFolder(openFolder === folder.title ? '' : folder.title)}
             >
-              {isExercises && (
+              {isExercises ? (
                 <TermActivity
                   type="Exercise"
                   number="1"
@@ -90,7 +88,14 @@ function MidtermPage() {
                   reflection="Through this activity, I developed a clearer understanding of how retrieval helps ground a chatbot's answers in selected source material. I learned that chunk size, overlap, embeddings, and top-k retrieval influence the context provided to the model. Resolving package compatibility issues and replacing a deprecated model also showed me the importance of checking whether every part of the environment still works after a change. Most importantly, comparing the restricted baseline with the higher-temperature stress test showed me that retrieval and clear fallback instructions must work together to reduce unsupported answers."
                   documents={exerciseOneDocuments}
                 />
-              )}
+              ) : !isWrittenWorks ? (
+                <NotebookEvidence
+                  title="Blue Notebook"
+                  filename="midterm-quiz-exam.jpg"
+                  imagePath="documents/midterm/midterm-quiz-exam-notebook/midterm-quiz-exam.jpg"
+                  alt="Blue examination notebook for the combined Midterm long quiz and examination"
+                />
+              ) : null}
             </PrelimFolder>
           )
         })}

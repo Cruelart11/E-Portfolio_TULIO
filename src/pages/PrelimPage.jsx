@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import NotebookEvidence from '../components/NotebookEvidence.jsx'
 import PrelimFolder from '../components/PrelimFolder.jsx'
 import TermActivity from '../components/TermActivity.jsx'
 
@@ -16,16 +17,10 @@ const folders = [
     description: 'Written learning activities and reflection reports.',
   },
   {
-    title: 'Long Quiz',
+    title: 'Long Quiz and Prelim Exam',
     count: 'blue notebook',
-    icon: '?',
-    description: 'Face-to-face written assessment.',
-  },
-  {
-    title: 'Prelim Exam',
-    count: 'blue notebook',
-    icon: '★',
-    description: 'Face-to-face preliminary examination.',
+    icon: 'Q/E',
+    description: 'Combined face-to-face long quiz and preliminary examination.',
   },
 ]
 
@@ -108,16 +103,6 @@ const writtenWorkOneDocuments = [
   },
 ]
 
-const notebookNotice = (
-  <div className="notebook-notice">
-    <span aria-hidden="true">i</span>
-    <p>
-      This activity was completed face-to-face in a blue notebook. The notebook has not yet been
-      returned because continuous rain caused class suspensions.
-    </p>
-  </div>
-)
-
 function PrelimPage() {
   const [openFolder, setOpenFolder] = useState('Exercises')
 
@@ -174,7 +159,14 @@ function PrelimPage() {
                 reflection="This written work developed my understanding of NLP from a general idea into a clearer view of the complete language-processing pipeline. I learned that preprocessing decisions, such as removing words or reducing them to their base forms, can improve consistency but may also change meaning when applied without care. Comparing TF-IDF with word embeddings also helped me understand the difference between measuring the statistical importance of words and representing their semantic relationships. Most importantly, I learned that the appropriate technique depends on the data and the problem being solved, not simply on which method is newest."
                 documents={writtenWorkOneDocuments}
               />
-            ) : notebookNotice}
+            ) : (
+              <NotebookEvidence
+                title="Blue Notebook"
+                filename="prelim-quiz-exam.jpg"
+                imagePath="documents/prelim/prelim-quiz-exam-notebook/prelim-quiz-exam.jpg"
+                alt="Blue examination notebook for the combined Prelim long quiz and examination"
+              />
+            )}
           </PrelimFolder>
         ))}
       </div>
