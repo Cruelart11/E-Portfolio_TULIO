@@ -33,7 +33,7 @@ function ReflectionsPage() {
       </section>
 
       <p className="folder-prompt reflections-command">
-        <span>$</span> cat <strong>./reflections/*.md</strong>
+        Reflections
       </p>
 
       <div className="reflection-card-list">
