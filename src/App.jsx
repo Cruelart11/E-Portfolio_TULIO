@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react'
 import Footer from './components/Footer.jsx'
 import Header from './components/Header.jsx'
 import CourseExpectationPage from './pages/CourseExpectationPage.jsx'
+import FinalsPage from './pages/FinalsPage.jsx'
 import HomePage from './pages/HomePage.jsx'
 import MidtermPage from './pages/MidtermPage.jsx'
 import PrelimPage from './pages/PrelimPage.jsx'
+import ReflectionsPage from './pages/ReflectionsPage.jsx'
 import { getPageFromHash, routes } from './routes.js'
 
 const pageComponents = {
@@ -12,6 +14,8 @@ const pageComponents = {
   'course-expectation': CourseExpectationPage,
   prelim: PrelimPage,
   midterm: MidtermPage,
+  finals: FinalsPage,
+  reflections: ReflectionsPage,
 }
 
 function App() {

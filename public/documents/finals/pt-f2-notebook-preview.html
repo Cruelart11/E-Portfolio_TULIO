@@ -1,0 +1,2670 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PT-F2: Experimenting to Determine the Best Chunk Size and Overlap</title>
+    <style>
+      :root { color-scheme: dark; font-family: Arial, sans-serif; }
+      * { box-sizing: border-box; }
+      body { max-width: 980px; margin: 0 auto; padding: 24px; color: #e6edf3; background: #0d1117; }
+      .preview-header { margin-bottom: 20px; padding: 18px; border: 1px solid #30363d; border-radius: 10px; background: #161b22; }
+      .preview-header p, .cell-label { margin: 0; color: #8b98ac; font: 12px/18px monospace; }
+      .preview-header h1 { margin: 6px 0 0; font-size: 24px; line-height: 1.25; }
+      .cell { margin: 0 0 14px; padding: 18px; border: 1px solid #30363d; border-radius: 10px; background: #10151d; }
+      .markdown-cell h2, .markdown-cell h3, .markdown-cell h4 { margin: 0 0 12px; color: #7ee787; line-height: 1.3; }
+      .markdown-cell h2 { font-size: 22px; }
+      .markdown-cell h3 { font-size: 18px; }
+      .markdown-cell h4 { font-size: 16px; }
+      .markdown-cell p, .markdown-cell li { color: #c9d1d9; font-size: 14px; line-height: 1.65; }
+      .markdown-cell p { margin: 0; }
+      .markdown-cell p + p, .markdown-cell ul + p, .markdown-cell p + ul { margin-top: 12px; }
+      .markdown-cell code { padding: 2px 5px; border-radius: 4px; color: #58a6ff; background: #0a0e14; font: 12px/1.5 monospace; }
+      a { color: #58a6ff; }
+      pre { overflow: auto; margin: 8px 0 0; padding: 14px; border-radius: 7px; color: #e6edf3; background: #0a0e14; font: 12px/1.55 monospace; white-space: pre; }
+      .output { margin-top: 10px; border-left: 3px solid #58a6ff; white-space: pre-wrap; }
+      .output-image { display: block; max-width: 100%; margin-top: 10px; border-radius: 6px; }
+      @media (max-width: 600px) { body { padding: 12px; } .cell, .preview-header { padding: 14px; } }
+    </style>
+  </head>
+  <body>
+    <header class="preview-header">
+      <p>Read-only notebook preview · 78 cells</p>
+      <h1>PT-F2: Experimenting to Determine the Best Chunk Size and Overlap</h1>
+    </header>
+    <main><section class="cell markdown-cell"><h2>Component I. Vector Indexing and Embedding</h2></section><section class="cell markdown-cell"><h4>1. Install the required libraries</h4><p>I begin by preparing the Colab environment with the packages used throughout the indexing workflow. <code>faiss-cpu</code> provides the vector-search functions, <code>sentence-transformers</code> supplies the embedding model, and <code>pypdf</code> reads text from the uploaded handbook. The Transformers and SentencePiece packages support the language model used later, while pandas and openpyxl handle the chunk-inspection workbook.</p><p>Keeping installation separate from the rest of the code makes setup problems easier to identify. If a package cannot be installed, I can resolve that issue before uploading the PDF or creating any vectors. The quiet <code>-q</code> option also keeps the output shorter, although Colab may still display important warnings or dependency messages.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 1</p><pre><code>
+# ============================================================
+# RAG DOCUMENT PROCESSING PIPELINE
+# PDF EXTRACTION, CHUNKING, EMBEDDINGS, FAISS, AND RETRIEVAL
+# WITH DOWNLOADABLE EXCEL CHUNK INSPECTION
+# Google Colab implementation
+# ============================================================
+
+
+# ============================================================
+# 1. INSTALL REQUIRED LIBRARIES
+# ============================================================
+
+!pip install -q \
+    faiss-cpu \
+    sentence-transformers \
+    pypdf \
+    &quot;transformers&gt;=4.51.0&quot; \
+    sentencepiece \
+    pandas \
+    openpyxl
+
+
+</code></pre></section><section class="cell markdown-cell"><h4>2. Import the indexing tools</h4><p>After installing the dependencies, this cell imports the particular classes and modules used by Component I. <code>files</code> connects the notebook to Colab&#x27;s upload and download interface, <code>PdfReader</code> extracts text from the PDF, and <code>SentenceTransformer</code> creates semantic embeddings. FAISS, NumPy, pandas, pickle, regular expressions, and file-path utilities support the remaining indexing and saving steps.</p><p>The three openpyxl style classes are included because the notebook does more than create a basic spreadsheet. They allow the exported chunk workbook to use readable headings, alignment, and formatting. Seeing all imports together also gives a useful overview of what the indexing component depends on before its functions are defined.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 2</p><pre><code># ============================================================
+# 2. IMPORT LIBRARIES
+# ============================================================
+
+from google.colab import files
+from pypdf import PdfReader
+from sentence_transformers import SentenceTransformer
+
+import faiss
+import numpy as np
+import pandas as pd
+import pickle
+import re
+import os
+
+from openpyxl.styles import Font, PatternFill, Alignment
+
+
+</code></pre></section><section class="cell markdown-cell"><h4>3. Set the indexing parameters</h4><p>This cell places the main experimental settings where they can be reviewed and changed without searching through the rest of the notebook. <code>CHUNK_SIZE</code> determines the maximum number of characters placed in a chunk, and <code>CHUNK_OVERLAP</code> repeats part of the previous chunk so that information near a boundary is less likely to lose its context. <code>TOP_K</code> gives the default number of results returned by the basic retrieval function.</p><p>The embedding model is set through <code>EMBEDDING_MODEL_NAME</code>. Using the same named model later for the chunks and the questions is essential because both need to be represented in the same vector space. I kept these settings visible because even a small adjustment to chunking can change which provisions are retrieved for a question.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 3</p><pre><code># ============================================================
+# 3. INDEXING PARAMETERS
+# ============================================================
+
+# Change these values to experiment with chunking.
+
+CHUNK_SIZE = 1000
+CHUNK_OVERLAP = 200
+TOP_K = 3
+
+# Embedding model
+EMBEDDING_MODEL_NAME = &quot;all-MiniLM-L6-v2&quot;
+
+
+</code></pre></section><section class="cell markdown-cell"><h4>Define the Chunking Configurations</h4><p>This section lists the twelve chunk-size and overlap combinations used in the experiment. Four chunk sizes are tested using zero, ten percent, and twenty percent overlap. Keeping these combinations organized in one list makes it easier to run the same indexing and retrieval process for every configuration without manually changing the values each time. The final configuration, C12, represents the original baseline of 1,000 characters with an overlap of 200 characters.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 4</p><pre><code># Twelve chunking configurations for the Part 2 experiment
+CHUNK_CONFIGURATIONS = [
+    {&quot;config&quot;: &quot;C1&quot;,  &quot;chunk_size&quot;: 300,  &quot;chunk_overlap&quot;: 0},
+    {&quot;config&quot;: &quot;C2&quot;,  &quot;chunk_size&quot;: 300,  &quot;chunk_overlap&quot;: 30},
+    {&quot;config&quot;: &quot;C3&quot;,  &quot;chunk_size&quot;: 300,  &quot;chunk_overlap&quot;: 60},
+
+    {&quot;config&quot;: &quot;C4&quot;,  &quot;chunk_size&quot;: 500,  &quot;chunk_overlap&quot;: 0},
+    {&quot;config&quot;: &quot;C5&quot;,  &quot;chunk_size&quot;: 500,  &quot;chunk_overlap&quot;: 50},
+    {&quot;config&quot;: &quot;C6&quot;,  &quot;chunk_size&quot;: 500,  &quot;chunk_overlap&quot;: 100},
+
+    {&quot;config&quot;: &quot;C7&quot;,  &quot;chunk_size&quot;: 700,  &quot;chunk_overlap&quot;: 0},
+    {&quot;config&quot;: &quot;C8&quot;,  &quot;chunk_size&quot;: 700,  &quot;chunk_overlap&quot;: 70},
+    {&quot;config&quot;: &quot;C9&quot;,  &quot;chunk_size&quot;: 700,  &quot;chunk_overlap&quot;: 140},
+
+    {&quot;config&quot;: &quot;C10&quot;, &quot;chunk_size&quot;: 1000, &quot;chunk_overlap&quot;: 0},
+    {&quot;config&quot;: &quot;C11&quot;, &quot;chunk_size&quot;: 1000, &quot;chunk_overlap&quot;: 100},
+    {&quot;config&quot;: &quot;C12&quot;, &quot;chunk_size&quot;: 1000, &quot;chunk_overlap&quot;: 200}
+]</code></pre></section><section class="cell markdown-cell"><h4>4. Validate and display the configuration</h4><p>Before processing the document, the code checks whether the selected values can produce a valid chunking process. A chunk size of zero or less would not create usable passages, and a negative overlap would not make sense. The overlap must also remain smaller than the chunk size because the later step size is calculated by subtracting one from the other. If both were equal, the chunking loop would never move forward.</p><p>The same type of check is applied to <code>TOP_K</code>, since asking the index to return zero results would make the retrieval stage ineffective. After validation, the settings are printed in a clear summary. I find this useful when comparing experiments because the notebook output itself records which configuration was active during that run.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 5</p><pre><code># ============================================================
+# 4. VALIDATE CHUNK PARAMETERS
+# ============================================================
+
+if CHUNK_SIZE &lt;= 0:
+    raise ValueError(&quot;CHUNK_SIZE must be greater than 0.&quot;)
+
+if CHUNK_OVERLAP &lt; 0:
+    raise ValueError(&quot;CHUNK_OVERLAP cannot be negative.&quot;)
+
+if CHUNK_OVERLAP &gt;= CHUNK_SIZE:
+    raise ValueError(
+        &quot;CHUNK_OVERLAP must be smaller than CHUNK_SIZE.&quot;
+    )
+
+if TOP_K &lt;= 0:
+    raise ValueError(&quot;TOP_K must be greater than 0.&quot;)
+
+
+print(&quot;=&quot; * 70)
+print(&quot;RAG INDEXING CONFIGURATION&quot;)
+print(&quot;=&quot; * 70)
+
+print(&quot;Chunk size       :&quot;, CHUNK_SIZE)
+print(&quot;Chunk overlap    :&quot;, CHUNK_OVERLAP)
+print(&quot;Top-K             :&quot;, TOP_K)
+print(&quot;Embedding model   :&quot;, EMBEDDING_MODEL_NAME)
+
+
+</code></pre><div class="outputs"><pre class="output">======================================================================
+RAG INDEXING CONFIGURATION
+======================================================================
+Chunk size       : 1000
+Chunk overlap    : 200
+Top-K             : 3
+Embedding model   : all-MiniLM-L6-v2
+</pre></div></section><section class="cell markdown-cell"><h4>5. Upload and validate the PDF</h4><p>This section starts the interactive document input through <code>files.upload()</code>. Colab returns the uploaded files as a dictionary, so the code verifies that at least one file was received and then uses the first filename as <code>pdf_file</code>. It also checks the extension before continuing, since every later extraction step expects a PDF.</p><p>These early checks make the workflow more understandable when something goes wrong. Instead of producing a less helpful error deep in <code>PdfReader</code>, the notebook immediately explains whether no document was selected or whether the chosen file was not a PDF. The selected filename is printed so I can confirm that the intended handbook is about to be indexed.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 6</p><pre><code># ============================================================
+# 5. UPLOAD PDF DOCUMENT
+# ============================================================
+
+print(&quot;\n&quot;)
+print(&quot;=&quot; * 70)
+print(&quot;UPLOAD DOCUMENT&quot;)
+print(&quot;=&quot; * 70)
+
+uploaded = files.upload()
+
+if len(uploaded) == 0:
+    raise RuntimeError(&quot;No file was uploaded.&quot;)
+
+# Use the first uploaded PDF
+pdf_file = next(iter(uploaded.keys()))
+
+if not pdf_file.lower().endswith(&quot;.pdf&quot;):
+    raise ValueError(
+        &quot;The uploaded file is not a PDF. Please upload a PDF.&quot;
+    )
+
+print(&quot;\nSelected file:&quot;)
+print(pdf_file)
+
+
+</code></pre><div class="outputs"><pre class="output">
+
+======================================================================
+UPLOAD DOCUMENT
+======================================================================
+</pre><pre class="output">&lt;IPython.core.display.HTML object&gt;</pre><pre class="output">Saving Workers-Statutory-Monetary-Benefits-Handbook-2024-Edition.pdf to Workers-Statutory-Monetary-Benefits-Handbook-2024-Edition.pdf
+
+Selected file:
+Workers-Statutory-Monetary-Benefits-Handbook-2024-Edition.pdf
+</pre></div></section><section class="cell markdown-cell"><h4>6. Extract and normalize page text</h4><p><code>PdfReader</code> opens the uploaded document, and the loop processes its pages in their original order. For every page, <code>extract_text()</code> attempts to recover the readable text layer. Pages that contain usable text are stored together with a one-based PDF page number, which is the same numbering later shown in retrieval results and citations.</p><p>The regular expression <code>re.sub(r&quot;\s+&quot;, &quot; &quot;, page_text)</code> replaces repeated spaces, line breaks, and other whitespace with a single space. PDF text often contains formatting breaks that are visually meaningful on the page but distracting during semantic search. Normalizing them gives the chunker cleaner sentences while preserving the words themselves.</p><p>I consider the page metadata just as important as the extracted text. Without it, FAISS could still retrieve similar passages, but the final answer could not be traced back to a specific part of the handbook.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 7</p><pre><code># ============================================================
+# 6. EXTRACT TEXT FROM PDF
+# ============================================================
+
+print(&quot;\n&quot;)
+print(&quot;=&quot; * 70)
+print(&quot;EXTRACTING PDF TEXT&quot;)
+print(&quot;=&quot; * 70)
+
+reader = PdfReader(pdf_file)
+
+pages = []
+
+for page_number, page in enumerate(reader.pages, start=1):
+
+    page_text = page.extract_text()
+
+    if page_text:
+
+        # Normalize whitespace
+        page_text = re.sub(
+            r&quot;\s+&quot;,
+            &quot; &quot;,
+            page_text
+        ).strip()
+
+        if page_text:
+            pages.append({
+                &quot;page&quot;: page_number,
+                &quot;text&quot;: page_text
+            })
+
+
+print(&quot;PDF pages:&quot;, len(reader.pages))
+print(&quot;Pages containing text:&quot;, len(pages))
+
+
+</code></pre><div class="outputs"><pre class="output">
+
+======================================================================
+EXTRACTING PDF TEXT
+======================================================================
+PDF pages: 81
+Pages containing text: 73
+</pre></div></section><section class="cell markdown-cell"><h4>7. Confirm that extraction succeeded</h4><p>This guard checks the <code>pages</code> collection before chunking begins. If the list is empty, the notebook stops and explains that the PDF may contain scanned images rather than selectable text. In that situation, ordinary PDF extraction is not enough and an optical character recognition step would be needed.</p><p>Stopping at this point prevents a chain of misleading results. An empty document would otherwise lead to no chunks, no embeddings, and an invalid FAISS index. The direct message makes the actual problem easier to recognize.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 8</p><pre><code># ============================================================
+# 7. CHECK WHETHER TEXT WAS EXTRACTED
+# ============================================================
+
+if len(pages) == 0:
+    raise RuntimeError(
+        &quot;No text could be extracted from the PDF. &quot;
+        &quot;The PDF may consist of scanned images and require OCR.&quot;
+    )
+
+
+</code></pre></section><section class="cell markdown-cell"><h4>8. Create overlapping document chunks</h4><p>The <code>create_chunks()</code> function turns the extracted pages into smaller passages that can be embedded and retrieved. It accepts the page collection together with the chosen size and overlap, then calculates <code>step_size</code> as <code>chunk_size - chunk_overlap</code>. With a size of 1,000 and an overlap of 200, the starting position moves forward by 800 characters for each new chunk.</p><p>Chunking is performed independently for every PDF page. The <code>start</code> and <code>end</code> positions slice the normalized page text, and <code>.strip()</code> removes unnecessary spaces around the result. A chunk is added only when it contains text. This page-by-page approach is useful because a retrieved chunk always has one unambiguous page number and never joins the end of one page to the beginning of another.</p><p>Each saved dictionary contains a sequential <code>chunk_id</code>, the original <code>page</code> number, and the actual <code>text</code>. The identifier gives every passage a stable label, while the page supports source checking. After one chunk is stored, <code>start</code> advances by the calculated step size, preserving the planned overlap until the end of the page is reached.</p><p>This function is central to the activity because chunk boundaries influence both retrieval precision and the amount of context available to the language model. A chunk that is too short may separate a rule from its condition, while a very long chunk may include several similar rules that are harder to distinguish.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 9</p><pre><code># ============================================================
+# 8. CREATE DOCUMENT CHUNKS
+# ============================================================
+
+def create_chunks(
+    pages,
+    chunk_size,
+    chunk_overlap
+):
+    &quot;&quot;&quot;
+    Split each page into character-based chunks.
+
+    Chunking is performed independently for each page.
+    Overlap is maintained between consecutive chunks
+    from the same page.
+    &quot;&quot;&quot;
+
+    chunks = []
+    chunk_id = 0
+
+    step_size = chunk_size - chunk_overlap
+
+    for page_data in pages:
+
+        page_number = page_data[&quot;page&quot;]
+        page_text = page_data[&quot;text&quot;]
+
+        start = 0
+
+        while start &lt; len(page_text):
+
+            end = start + chunk_size
+
+            chunk_text = page_text[start:end].strip()
+
+            if chunk_text:
+                chunks.append({
+                    &quot;chunk_id&quot;: chunk_id,
+                    &quot;page&quot;: page_number,
+                    &quot;text&quot;: chunk_text
+                })
+
+                chunk_id += 1
+
+            # Move forward while maintaining overlap
+            start += step_size
+
+    return chunks
+
+
+# Store the chunks generated for every configuration.
+chunks_by_configuration = {}
+
+for configuration in CHUNK_CONFIGURATIONS:
+
+    config_id = configuration[&quot;config&quot;]
+    chunk_size = configuration[&quot;chunk_size&quot;]
+    chunk_overlap = configuration[&quot;chunk_overlap&quot;]
+
+    configuration_chunks = create_chunks(
+        pages,
+        chunk_size,
+        chunk_overlap
+    )
+
+    chunks_by_configuration[config_id] = configuration_chunks
+
+    print(
+        f&quot;{config_id}: &quot;
+        f&quot;chunk size = {chunk_size}, &quot;
+        f&quot;overlap = {chunk_overlap}, &quot;
+        f&quot;total chunks = {len(configuration_chunks)}&quot;
+    )
+
+
+# Keep C12 as the active baseline for the notebook&#x27;s original cells.
+chunks = chunks_by_configuration[&quot;C12&quot;]
+
+print(&quot;\nActive baseline configuration: C12&quot;)
+print(&quot;Active baseline chunks:&quot;, len(chunks))
+
+
+</code></pre><div class="outputs"><pre class="output">C1: chunk size = 300, overlap = 0, total chunks = 517
+C2: chunk size = 300, overlap = 30, total chunks = 569
+C3: chunk size = 300, overlap = 60, total chunks = 633
+C4: chunk size = 500, overlap = 0, total chunks = 323
+C5: chunk size = 500, overlap = 50, total chunks = 359
+C6: chunk size = 500, overlap = 100, total chunks = 398
+C7: chunk size = 700, overlap = 0, total chunks = 242
+C8: chunk size = 700, overlap = 70, total chunks = 269
+C9: chunk size = 700, overlap = 140, total chunks = 295
+C10: chunk size = 1000, overlap = 0, total chunks = 180
+C11: chunk size = 1000, overlap = 100, total chunks = 199
+C12: chunk size = 1000, overlap = 200, total chunks = 217
+
+Active baseline configuration: C12
+Active baseline chunks: 217
+</pre></div></section><section class="cell markdown-cell"><h4>9. Review the chunking results</h4><p>Once the chunks have been created, this cell prints the total number produced and verifies that the collection is not empty. It then calculates their character lengths and reports basic observations about the resulting distribution. These values show whether the selected settings behaved as expected across pages of different lengths.</p><p>This review is a practical checkpoint before embedding begins. If the chunk count or lengths look unusual, I can return to the extraction or parameter cells without spending time encoding an unsuitable collection. It also provides evidence of the chunking configuration used during the experiment.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 10</p><pre><code># ============================================================
+# 9. DISPLAY CHUNKING INFORMATION
+# ============================================================
+
+print(&quot;\n&quot;)
+print(&quot;=&quot; * 70)
+print(&quot;CHUNKING RESULTS&quot;)
+print(&quot;=&quot; * 70)
+
+print(&quot;Number of chunks:&quot;, len(chunks))
+
+if len(chunks) == 0:
+    raise RuntimeError(
+        &quot;No chunks were generated. Check the extracted PDF text.&quot;
+    )
+
+chunk_lengths = [
+    len(chunk[&quot;text&quot;])
+    for chunk in chunks
+]
+
+print(
+    &quot;Average characters per chunk:&quot;,
+    round(np.mean(chunk_lengths), 2)
+)
+
+print(
+    &quot;Shortest chunk:&quot;,
+    min(chunk_lengths),
+    &quot;characters&quot;
+)
+
+print(
+    &quot;Longest chunk:&quot;,
+    max(chunk_lengths),
+    &quot;characters&quot;
+)
+
+
+</code></pre><div class="outputs"><pre class="output">
+
+======================================================================
+CHUNKING RESULTS
+======================================================================
+Number of chunks: 217
+Average characters per chunk: 787.47
+Shortest chunk: 2 characters
+Longest chunk: 1000 characters
+</pre></div></section><section class="cell markdown-cell"><h4>10. Export the chunks for manual inspection</h4><p>This section creates a detailed record of the chunking output so that the passages can be examined outside the notebook. It first converts every chunk dictionary into a row containing the chunk identifier, source document, PDF page, character count, chunk settings, and complete text. The rows are collected in a pandas DataFrame, which provides a convenient structure for writing them to Excel.</p><p>The output filename is derived from the uploaded PDF name. The workbook contains the chunk data and a separate summary of the configuration, allowing the passages to remain connected to the experiment that produced them. This matters when different chunk sizes or overlap values are tested, since otherwise several exported files could be difficult to compare.</p><p>After pandas writes the workbook, openpyxl reopens it to improve readability. The code formats the headers, adjusts alignment, enables wrapping for long text, and assigns more appropriate column widths. These details do not affect retrieval, but they make it much easier to inspect whether a pay rule was split at an awkward location or mixed with a neighboring provision.</p><p>The final <code>files.download(EXCEL_FILE)</code> call asks the browser to download the workbook automatically. I noticed that Colab may continue this browser-side download even after the next component has started. That behavior does not mean indexing is running again, it only means the download request created in this cell is still being completed.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 11</p><pre><code># ============================================================
+# 10. EXPORT GENERATED CHUNKS TO EXCEL
+# ============================================================
+
+print(&quot;\n&quot;)
+print(&quot;=&quot; * 70)
+print(&quot;EXPORTING GENERATED CHUNKS TO EXCEL&quot;)
+print(&quot;=&quot; * 70)
+
+# Prepare one Excel row for every generated chunk.
+chunk_records = []
+
+for chunk in chunks:
+
+    chunk_records.append({
+        &quot;Chunk_ID&quot;: chunk[&quot;chunk_id&quot;],
+        &quot;Source_Document&quot;: pdf_file,
+        &quot;Page_Number&quot;: chunk[&quot;page&quot;],
+        &quot;Character_Count&quot;: len(chunk[&quot;text&quot;]),
+        &quot;Chunk_Size_Setting&quot;: CHUNK_SIZE,
+        &quot;Chunk_Overlap_Setting&quot;: CHUNK_OVERLAP,
+        &quot;Chunk_Text&quot;: chunk[&quot;text&quot;]
+    })
+
+chunks_df = pd.DataFrame(chunk_records)
+
+# Create an output filename based on the source PDF.
+base_name = os.path.splitext(
+    os.path.basename(pdf_file)
+)[0]
+
+EXCEL_FILE = f&quot;{base_name}_chunks_inspection.xlsx&quot;
+
+# Create and format the Excel workbook.
+with pd.ExcelWriter(
+    EXCEL_FILE,
+    engine=&quot;openpyxl&quot;
+) as writer:
+
+    chunks_df.to_excel(
+        writer,
+        sheet_name=&quot;Generated_Chunks&quot;,
+        index=False
+    )
+
+    worksheet = writer.sheets[&quot;Generated_Chunks&quot;]
+
+    # Format the header row.
+    for cell in worksheet[1]:
+
+        cell.font = Font(
+            bold=True,
+            color=&quot;FFFFFF&quot;
+        )
+
+        cell.fill = PatternFill(
+            fill_type=&quot;solid&quot;,
+            fgColor=&quot;1F4E78&quot;
+        )
+
+        cell.alignment = Alignment(
+            horizontal=&quot;center&quot;,
+            vertical=&quot;center&quot;,
+            wrap_text=True
+        )
+
+    # Set column widths.
+    column_widths = {
+        &quot;A&quot;: 12,
+        &quot;B&quot;: 35,
+        &quot;C&quot;: 14,
+        &quot;D&quot;: 18,
+        &quot;E&quot;: 20,
+        &quot;F&quot;: 23,
+        &quot;G&quot;: 80
+    }
+
+    for column, width in column_widths.items():
+        worksheet.column_dimensions[column].width = width
+
+    # Format rows for easier inspection.
+    for row in worksheet.iter_rows(
+        min_row=2,
+        max_row=worksheet.max_row
+    ):
+
+        for cell in row:
+
+            cell.alignment = Alignment(
+                vertical=&quot;top&quot;,
+                wrap_text=(cell.column == 7)
+            )
+
+    # Keep headers visible while scrolling.
+    worksheet.freeze_panes = &quot;A2&quot;
+
+    # Enable filtering.
+    worksheet.auto_filter.ref = worksheet.dimensions
+
+    # Set header height.
+    worksheet.row_dimensions[1].height = 32
+
+print(&quot;Excel file created:&quot;, EXCEL_FILE)
+print(&quot;Chunks exported:&quot;, len(chunks_df))
+print(&quot;Excel worksheet: Generated_Chunks&quot;)
+
+print(&quot;\nExcel export preview:&quot;)
+
+print(
+    chunks_df[
+        [
+            &quot;Chunk_ID&quot;,
+            &quot;Page_Number&quot;,
+            &quot;Character_Count&quot;
+        ]
+    ].head(10).to_string(index=False)
+)
+
+# Automatically download the Excel workbook in Google Colab.
+files.download(EXCEL_FILE)
+
+
+</code></pre><div class="outputs"><pre class="output">
+
+======================================================================
+EXPORTING GENERATED CHUNKS TO EXCEL
+======================================================================
+Excel file created: Workers-Statutory-Monetary-Benefits-Handbook-2024-Edition_chunks_inspection.xlsx
+Chunks exported: 217
+Excel worksheet: Generated_Chunks
+
+Excel export preview:
+ Chunk_ID  Page_Number  Character_Count
+        0            3              136
+        1            4              745
+        2            5             1000
+        3            5             1000
+        4            5              519
+        5            6              999
+        6            6             1000
+        7            6             1000
+        8            6             1000
+        9            6              681
+</pre><pre class="output">&lt;IPython.core.display.Javascript object&gt;</pre><pre class="output">&lt;IPython.core.display.Javascript object&gt;</pre></div></section><section class="cell markdown-cell"><h4>11. Display a small chunk sample</h4><p>The first three chunks are printed with their identifiers, page numbers, character counts, and text. This gives an immediate view of the extraction and chunking quality without requiring the Excel workbook to be opened. A small sample is usually enough to notice broken spacing, missing text, or unexpectedly short passages.</p><p>Only three chunks are displayed to keep the Colab output readable. The complete collection is still available in the Excel export when a more careful review is needed.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 12</p><pre><code># ============================================================
+# 11. DISPLAY SAMPLE CHUNKS
+# ============================================================
+
+print(&quot;\n&quot;)
+print(&quot;=&quot; * 70)
+print(&quot;SAMPLE CHUNKS&quot;)
+print(&quot;=&quot; * 70)
+
+for chunk in chunks[:3]:
+
+    print(f&quot;\nChunk ID : {chunk[&#x27;chunk_id&#x27;]}&quot;)
+    print(f&quot;Page     : {chunk[&#x27;page&#x27;]}&quot;)
+    print(f&quot;Characters: {len(chunk[&#x27;text&#x27;])}&quot;)
+
+    print(&quot;-&quot; * 70)
+
+    print(chunk[&quot;text&quot;])
+
+
+</code></pre><div class="outputs"><pre class="output">
+
+======================================================================
+SAMPLE CHUNKS
+======================================================================
+
+Chunk ID : 0
+Page     : 3
+Characters: 136
+----------------------------------------------------------------------
+HANDBOOK ON WORKERS’ STATUTORY MONETARY BENEFITS DEPARTMENT OF LABOR AND EMPLOYMENT BUREAU OF WORKING CONDITIONS INTRAMUROS, MANILA 2024
+
+Chunk ID : 1
+Page     : 4
+Characters: 745
+----------------------------------------------------------------------
+The Project Team Atty. Alvin B. Curada, Atty. Carlo S. Casabar, Jennifer I. Obien, Pauli Andrenette Grace D. Ong, and other BWC staff Special Credit: Nicanor V. Bon and Emila T. de Guzman Cover Art: Euniz Johanne G. Bingil All Rights Reserved This Handbook, or any part thereof, may not be reproduced for commercial purposes without the written permission of the Bureau of Working Conditions, Department of Labor and Employment. This Handbook is published by the: Bureau of Working Conditions Department of Labor and Employment 3rd Floor, DOLE Building, Muralla cor. Gen. Luna Streets, Intramuros, Manila Tel. No. (02) 8527-3000 locals 306 or 308; Telefax No. (02) 8527-3478; email: ask@bwc.dole.gov.ph; website: bwc.dole.gov.ph – NOT FOR SALE –
+
+Chunk ID : 2
+Page     : 5
+Characters: 1000
+----------------------------------------------------------------------
+Republic of the Philippines DEPARTMENT OF LABOR AND EMPLOYMENT Intramuros, Manila MESSAGE FROM THE SECRETARY The Department of Labor and Employment proudly presents the 2024 Edition of the Handbook on Workers’ Statutory Benefits, featuring the latest updates and significant developments in labor standards, rules, and regulations. Building upon the foundation laid by the 2023 edition, our 2024 update reaffirms our commitment to providing current information and guidance on workers&#x27; wages and related benefits. This edition features direct links to recent wage orders which reflect the increased daily minimum wage for private sector workers and the updated monthly minimum wage of domestic helpers or &quot;Kasambahay.&quot; Additionally , this integrates important updates from DOLE Department Order 242, Series of 2024, which revises the Rules and Regulations of Article 96 of the Labor Code of the Philippines, as amended by Republic Act No. 11360 expanding coverage and distribution of service charges.
+</pre></div></section><section class="cell markdown-cell"><h4>12. Load the embedding model</h4><p>This cell initializes <code>SentenceTransformer</code> using the name stored earlier in <code>EMBEDDING_MODEL_NAME</code>. The resulting <code>embedding_model</code> converts text into numerical vectors that represent semantic meaning rather than relying only on exact matching words.</p><p>The model object remains in memory and is reused later for user questions. Reusing the same encoder is important because the question vectors must be directly comparable with the document vectors stored in FAISS.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 13</p><pre><code># ============================================================
+# 12. LOAD EMBEDDING MODEL
+# ============================================================
+
+print(&quot;\n&quot;)
+print(&quot;=&quot; * 70)
+print(&quot;LOADING EMBEDDING MODEL&quot;)
+print(&quot;=&quot; * 70)
+
+embedding_model = SentenceTransformer(
+    EMBEDDING_MODEL_NAME
+)
+
+print(&quot;Embedding model:&quot;, EMBEDDING_MODEL_NAME)
+
+
+</code></pre><div class="outputs"><pre class="output">
+
+======================================================================
+LOADING EMBEDDING MODEL
+======================================================================
+</pre><pre class="output">modules.json:   0%|          | 0.00/349 [00:00&lt;?, ?B/s]</pre><pre class="output">Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+WARNING:huggingface_hub.utils._http:Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+</pre><pre class="output">config_sentence_transformers.json:   0%|          | 0.00/116 [00:00&lt;?, ?B/s]</pre><pre class="output">README.md:   0%|          | 0.00/10.5k [00:00&lt;?, ?B/s]</pre><pre class="output">sentence_bert_config.json:   0%|          | 0.00/53.0 [00:00&lt;?, ?B/s]</pre><pre class="output">config.json:   0%|          | 0.00/612 [00:00&lt;?, ?B/s]</pre><pre class="output">model.safetensors: reconstructing file:   0%|          |  0.00B / 90.9MB            </pre><pre class="output">model.safetensors: downloading bytes:           |  0.00B            </pre><pre class="output">Loading weights:   0%|          | 0/103 [00:00&lt;?, ?it/s]</pre><pre class="output">tokenizer_config.json:   0%|          | 0.00/350 [00:00&lt;?, ?B/s]</pre><pre class="output">vocab.txt:   0%|          | 0.00/232k [00:00&lt;?, ?B/s]</pre><pre class="output">tokenizer.json:   0%|          | 0.00/466k [00:00&lt;?, ?B/s]</pre><pre class="output">special_tokens_map.json:   0%|          | 0.00/112 [00:00&lt;?, ?B/s]</pre><pre class="output">config.json:   0%|          | 0.00/190 [00:00&lt;?, ?B/s]</pre><pre class="output">Embedding model: all-MiniLM-L6-v2
+</pre></div></section><section class="cell markdown-cell"><h4>13. Prepare the text for embedding</h4><p>The chunk dictionaries include identifiers and page metadata, but <code>SentenceTransformer.encode()</code> only needs the passage text. This list comprehension extracts every <code>chunk[&quot;text&quot;]</code> value into <code>chunk_texts</code> while preserving the original order.</p><p>That ordering creates an important connection between the embedding array and the <code>chunks</code> list. Vector position zero must still refer to chunk zero, and the same relationship must continue throughout the collection so that retrieved positions can be translated back into readable sources.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 14</p><pre><code># ============================================================
+# 13. EXTRACT CHUNK TEXT
+# ============================================================
+
+chunk_texts = [
+    chunk[&quot;text&quot;]
+    for chunk in chunks
+]
+
+
+</code></pre></section><section class="cell markdown-cell"><h4>14. Encode the document chunks</h4><p>The embedding model processes <code>chunk_texts</code> and returns a NumPy array containing one vector for every passage. <code>normalize_embeddings=True</code> scales each vector to unit length. This allows the inner-product index used in the next cell to produce scores that behave like cosine similarity.</p><p>The vectors are converted to <code>float32</code> because that is the numeric type expected by FAISS. The printed array shape offers a useful check: its first value should match the number of chunks, while the second value represents the embedding dimension produced by MiniLM.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 15</p><pre><code># ============================================================
+# 14. CREATE DOCUMENT EMBEDDINGS
+# ============================================================
+
+print(&quot;\n&quot;)
+print(&quot;=&quot; * 70)
+print(&quot;CREATING DOCUMENT EMBEDDINGS&quot;)
+print(&quot;=&quot; * 70)
+
+embeddings = embedding_model.encode(
+    chunk_texts,
+    convert_to_numpy=True,
+    normalize_embeddings=True,
+    show_progress_bar=True
+)
+
+# FAISS expects float32 vectors.
+embeddings = embeddings.astype(&quot;float32&quot;)
+
+print(&quot;\nEmbedding matrix shape:&quot;)
+print(embeddings.shape)
+
+
+</code></pre><div class="outputs"><pre class="output">
+
+======================================================================
+CREATING DOCUMENT EMBEDDINGS
+======================================================================
+</pre><pre class="output">Batches:   0%|          | 0/7 [00:00&lt;?, ?it/s]</pre><pre class="output">
+Embedding matrix shape:
+(217, 384)
+</pre></div></section><section class="cell markdown-cell"><h4>15. Build the FAISS index</h4><p>This cell reads the vector dimension from the embedding array and uses it to create <code>faiss.IndexFlatIP</code>. The index performs exact inner-product comparisons rather than using an approximate search structure. Since the vectors were normalized, a larger inner product indicates greater semantic similarity between the question and a chunk.</p><p>Calling <code>index.add(embeddings)</code> stores every document vector in its current order. The reported <code>index.ntotal</code> should match the chunk count. This confirmation tells me that no passage was lost between chunk creation and vector indexing.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 16</p><pre><code># ============================================================
+# 15. CREATE FAISS VECTOR STORE
+# ============================================================
+
+print(&quot;\n&quot;)
+print(&quot;=&quot; * 70)
+print(&quot;CREATING FAISS VECTOR STORE&quot;)
+print(&quot;=&quot; * 70)
+
+embedding_dimension = embeddings.shape[1]
+
+# Inner Product on normalized vectors is equivalent
+# to cosine similarity.
+index = faiss.IndexFlatIP(
+    embedding_dimension
+)
+
+index.add(embeddings)
+
+print(&quot;Embedding dimension:&quot;, embedding_dimension)
+print(&quot;Vectors stored:&quot;, index.ntotal)
+
+
+</code></pre><div class="outputs"><pre class="output">
+
+======================================================================
+CREATING FAISS VECTOR STORE
+======================================================================
+Embedding dimension: 384
+Vectors stored: 217
+</pre></div></section><section class="cell markdown-cell"><h4>15A. Build the experimental FAISS indexes</h4><p>This section prepares a separate vector store for every chunking configuration. Each configuration uses the same extracted PDF pages and embedding model, while only the chunk size and overlap are changed. This keeps the experiment controlled and allows the retrieval results to be compared fairly.</p><p>For each configuration, the corresponding chunk texts are encoded into normalized embeddings. A new <code>IndexFlatIP</code> FAISS index is then created and filled with those vectors. Creating a new index matters because vectors generated from one chunking configuration must not be mixed with chunks from another configuration.</p><p>The resulting chunks, FAISS index, and processing time are stored together in <code>experiment_vector_stores</code>. Keeping them under their configuration identifiers makes it possible to run the same questions against C1 through C12 without manually rebuilding the notebook for every test. The elapsed time is also recorded because computational efficiency is one of the factors considered in the activity.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 17</p><pre><code># ============================================================
+# 15A. BUILD A FAISS INDEX FOR EVERY CONFIGURATION
+# ============================================================
+
+import time
+
+experiment_vector_stores = {}
+
+print(&quot;\n&quot;)
+print(&quot;=&quot; * 70)
+print(&quot;BUILDING EXPERIMENTAL FAISS INDEXES&quot;)
+print(&quot;=&quot; * 70)
+
+for configuration in CHUNK_CONFIGURATIONS:
+
+    config_id = configuration[&quot;config&quot;]
+    chunk_size = configuration[&quot;chunk_size&quot;]
+    chunk_overlap = configuration[&quot;chunk_overlap&quot;]
+
+    configuration_chunks = chunks_by_configuration[config_id]
+
+    configuration_texts = [
+        chunk[&quot;text&quot;]
+        for chunk in configuration_chunks
+    ]
+
+    start_time = time.perf_counter()
+
+    configuration_embeddings = embedding_model.encode(
+        configuration_texts,
+        convert_to_numpy=True,
+        normalize_embeddings=True,
+        show_progress_bar=False
+    )
+
+    configuration_embeddings = configuration_embeddings.astype(
+        &quot;float32&quot;
+    )
+
+    configuration_index = faiss.IndexFlatIP(
+        configuration_embeddings.shape[1]
+    )
+
+    configuration_index.add(
+        configuration_embeddings
+    )
+
+    elapsed_time = time.perf_counter() - start_time
+
+    experiment_vector_stores[config_id] = {
+        &quot;config&quot;: config_id,
+        &quot;chunk_size&quot;: chunk_size,
+        &quot;chunk_overlap&quot;: chunk_overlap,
+        &quot;chunks&quot;: configuration_chunks,
+        &quot;index&quot;: configuration_index,
+        &quot;total_chunks&quot;: len(configuration_chunks),
+        &quot;processing_time_seconds&quot;: elapsed_time
+    }
+
+    print(
+        f&quot;{config_id}: &quot;
+        f&quot;{len(configuration_chunks)} chunks, &quot;
+        f&quot;{configuration_index.ntotal} vectors, &quot;
+        f&quot;{elapsed_time:.2f} seconds&quot;
+    )
+
+
+# Keep the original notebook connected to the C12 baseline.
+chunks = experiment_vector_stores[&quot;C12&quot;][&quot;chunks&quot;]
+index = experiment_vector_stores[&quot;C12&quot;][&quot;index&quot;]
+
+print(&quot;\nAll 12 FAISS indexes were created successfully.&quot;)
+print(&quot;Active notebook configuration: C12&quot;)</code></pre><div class="outputs"><pre class="output">
+
+======================================================================
+BUILDING EXPERIMENTAL FAISS INDEXES
+======================================================================
+C1: 517 chunks, 517 vectors, 0.73 seconds
+C2: 569 chunks, 569 vectors, 1.03 seconds
+C3: 633 chunks, 633 vectors, 0.91 seconds
+C4: 323 chunks, 323 vectors, 0.73 seconds
+C5: 359 chunks, 359 vectors, 0.76 seconds
+C6: 398 chunks, 398 vectors, 0.79 seconds
+C7: 242 chunks, 242 vectors, 0.52 seconds
+C8: 269 chunks, 269 vectors, 0.80 seconds
+C9: 295 chunks, 295 vectors, 1.51 seconds
+C10: 180 chunks, 180 vectors, 0.90 seconds
+C11: 199 chunks, 199 vectors, 1.22 seconds
+C12: 217 chunks, 217 vectors, 1.19 seconds
+
+All 12 FAISS indexes were created successfully.
+Active notebook configuration: C12
+</pre></div></section><section class="cell markdown-cell"><h4>15B. Define the Fixed Test Questions and Ground Truth</h4><p>This section records the nine questions used throughout the chunking experiment. The question set contains three easy, three average, and three difficult questions. Keeping them in one structured list ensures that every configuration receives exactly the same retrieval test, which makes the comparison fair and consistent.</p><p>Each question includes its expected answer, source reference, and evidence-unit identifiers. These details serve as the ground truth when reviewing whether the top-three retrieved chunks contain enough evidence to answer the question. Although chunk identifiers may change when the chunk size and overlap are adjusted, the required supporting information remains the same.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 18</p><pre><code># ============================================================
+# 15B. DEFINE TEST QUESTIONS AND GROUND TRUTH
+# ============================================================
+
+TEST_QUESTIONS = [
+    {
+        &quot;question_id&quot;: &quot;E1&quot;,
+        &quot;difficulty&quot;: &quot;Easy&quot;,
+        &quot;question&quot;: (
+            &quot;I worked for eight hours on a regular holiday. &quot;
+            &quot;It was not my rest day, and I did not work overtime. &quot;
+            &quot;What percentage of my basic wage should I receive?&quot;
+        ),
+        &quot;expected_answer&quot;: (
+            &quot;The worker should receive 200% of the basic wage &quot;
+            &quot;for the first eight hours.&quot;
+        ),
+        &quot;source_reference&quot;: (
+            &quot;PDF p. 28, Holiday Pay, &quot;
+            &quot;D. Holiday Pay Rates, item 2&quot;
+        ),
+        &quot;evidence_units&quot;: [&quot;HP-1&quot;]
+    },
+    {
+        &quot;question_id&quot;: &quot;E2&quot;,
+        &quot;difficulty&quot;: &quot;Easy&quot;,
+        &quot;question&quot;: (
+            &quot;I have worked for my employer for at least one year, &quot;
+            &quot;and I am covered by the service incentive leave benefit. &quot;
+            &quot;How many paid leave days should I receive?&quot;
+        ),
+        &quot;expected_answer&quot;: (
+            &quot;The worker should receive five days of paid &quot;
+            &quot;service incentive leave.&quot;
+        ),
+        &quot;source_reference&quot;: (
+            &quot;PDF p. 38, Service Incentive Leave, A. Definition&quot;
+        ),
+        &quot;evidence_units&quot;: [&quot;SIL-1&quot;]
+    },
+    {
+        &quot;question_id&quot;: &quot;E3&quot;,
+        &quot;difficulty&quot;: &quot;Easy&quot;,
+        &quot;question&quot;: (
+            &quot;How should my minimum 13th-month pay be calculated &quot;
+            &quot;from the basic salary I earned during the year?&quot;
+        ),
+        &quot;expected_answer&quot;: (
+            &quot;The minimum 13th-month pay is one-twelfth of the &quot;
+            &quot;total basic salary earned during the calendar year.&quot;
+        ),
+        &quot;source_reference&quot;: (
+            &quot;PDF p. 51, Thirteenth-Month Pay, &quot;
+            &quot;C. Amount and D. Computation&quot;
+        ),
+        &quot;evidence_units&quot;: [&quot;TM-1&quot;]
+    },
+    {
+        &quot;question_id&quot;: &quot;A1&quot;,
+        &quot;difficulty&quot;: &quot;Average&quot;,
+        &quot;question&quot;: (
+            &quot;I worked for eight hours on a special non-working day, &quot;
+            &quot;and it was also my scheduled rest day. &quot;
+            &quot;What additional compensation and total pay percentage &quot;
+            &quot;should I receive?&quot;
+        ),
+        &quot;expected_answer&quot;: (
+            &quot;The worker receives an additional 50% of the basic wage, &quot;
+            &quot;resulting in total pay of 150% for the first eight hours.&quot;
+        ),
+        &quot;source_reference&quot;: (
+            &quot;PDF p. 32, Premium Pay, &quot;
+            &quot;D. Premium Pay Rates, item 3&quot;
+        ),
+        &quot;evidence_units&quot;: [&quot;PP-1&quot;]
+    },
+    {
+        &quot;question_id&quot;: &quot;A2&quot;,
+        &quot;difficulty&quot;: &quot;Average&quot;,
+        &quot;question&quot;: (
+            &quot;I resigned in September before the regular payment of &quot;
+            &quot;the 13th-month benefit. Am I still entitled to it, &quot;
+            &quot;and how should it be calculated?&quot;
+        ),
+        &quot;expected_answer&quot;: (
+            &quot;Yes. The worker is entitled to proportionate 13th-month &quot;
+            &quot;pay equal to one-twelfth of the total basic salary earned &quot;
+            &quot;up to the resignation date.&quot;
+        ),
+        &quot;source_reference&quot;: (
+            &quot;PDF pp. 52-53, Thirteenth-Month Pay, &quot;
+            &quot;G. Resigned or Separated Employee&quot;
+        ),
+        &quot;evidence_units&quot;: [&quot;TM-2&quot;, &quot;TM-3&quot;]
+    },
+    {
+        &quot;question_id&quot;: &quot;A3&quot;,
+        &quot;difficulty&quot;: &quot;Average&quot;,
+        &quot;question&quot;: (
+            &quot;I did not use all of my service incentive leave, &quot;
+            &quot;and I am resigning. Can the unused leave be paid in cash, &quot;
+            &quot;and which salary rate should be used?&quot;
+        ),
+        &quot;expected_answer&quot;: (
+            &quot;Yes. Unused service incentive leave may be converted &quot;
+            &quot;to cash upon resignation using the salary rate on the &quot;
+            &quot;date of commutation.&quot;
+        ),
+        &quot;source_reference&quot;: (
+            &quot;PDF p. 39, Service Incentive Leave, D. Conversion&quot;
+        ),
+        &quot;evidence_units&quot;: [&quot;SIL-2&quot;, &quot;SIL-3&quot;]
+    },
+    {
+        &quot;question_id&quot;: &quot;D1&quot;,
+        &quot;difficulty&quot;: &quot;Difficult&quot;,
+        &quot;question&quot;: (
+            &quot;I worked for 10 hours on a regular holiday that also &quot;
+            &quot;fell on my scheduled rest day. What rate applies to my &quot;
+            &quot;first eight hours, what rate applies to my two overtime &quot;
+            &quot;hours, and what is my total pay as a percentage of my &quot;
+            &quot;basic daily wage? Assume my basic daily wage covers &quot;
+            &quot;eight hours.&quot;
+        ),
+        &quot;expected_answer&quot;: (
+            &quot;The first eight hours receive 260% of the basic daily &quot;
+            &quot;wage. Each overtime hour receives 338% of the basic &quot;
+            &quot;hourly rate. The total for ten hours is 344.5% of the &quot;
+            &quot;basic daily wage.&quot;
+        ),
+        &quot;source_reference&quot;: (
+            &quot;PDF pp. 32-33, Premium Pay item 4 and &quot;
+            &quot;Overtime Pay item 5&quot;
+        ),
+        &quot;evidence_units&quot;: [&quot;HP-2&quot;, &quot;OT-1&quot;]
+    },
+    {
+        &quot;question_id&quot;: &quot;D2&quot;,
+        &quot;difficulty&quot;: &quot;Difficult&quot;,
+        &quot;question&quot;: (
+            &quot;My company is closing for reasons that are not due to &quot;
+            &quot;serious business losses. I worked for 6 years and 7 months. &quot;
+            &quot;My latest monthly salary is PHP 20,000, and I regularly &quot;
+            &quot;receive a PHP 2,000 monthly allowance. What minimum &quot;
+            &quot;separation pay should I receive?&quot;
+        ),
+        &quot;expected_answer&quot;: (
+            &quot;The service period is counted as seven years. The salary &quot;
+            &quot;base is PHP 22,000. The minimum separation pay is &quot;
+            &quot;PHP 22,000 multiplied by one-half multiplied by seven, &quot;
+            &quot;which equals PHP 77,000.&quot;
+        ),
+        &quot;source_reference&quot;: (
+            &quot;PDF pp. 55-56, Separation Pay, &quot;
+            &quot;C. Amount and D. Computation&quot;
+        ),
+        &quot;evidence_units&quot;: [&quot;SP-1&quot;, &quot;SP-2&quot;]
+    },
+    {
+        &quot;question_id&quot;: &quot;D3&quot;,
+        &quot;difficulty&quot;: &quot;Difficult&quot;,
+        &quot;question&quot;: (
+            &quot;I am 60 years old, have worked for a covered establishment &quot;
+            &quot;for 14 years and 7 months, and my latest daily rate is &quot;
+            &quot;PHP 700. If there is no more favorable retirement plan, &quot;
+            &quot;what is my minimum retirement pay?&quot;
+        ),
+        &quot;expected_answer&quot;: (
+            &quot;The service period is counted as 15 years. The minimum &quot;
+            &quot;retirement pay is PHP 700 multiplied by 22.5 days &quot;
+            &quot;multiplied by 15 years, which equals PHP 236,250.&quot;
+        ),
+        &quot;source_reference&quot;: (
+            &quot;PDF p. 58, Retirement Pay, &quot;
+            &quot;B. Coverage, C. Amount, and D. Computation&quot;
+        ),
+        &quot;evidence_units&quot;: [&quot;RP-1&quot;, &quot;RP-2&quot;, &quot;RP-3&quot;]
+    }
+]
+
+print(&quot;Total test questions:&quot;, len(TEST_QUESTIONS))
+
+for difficulty in [&quot;Easy&quot;, &quot;Average&quot;, &quot;Difficult&quot;]:
+
+    difficulty_count = sum(
+        1
+        for item in TEST_QUESTIONS
+        if item[&quot;difficulty&quot;] == difficulty
+    )
+
+    print(f&quot;{difficulty}: {difficulty_count}&quot;)</code></pre><div class="outputs"><pre class="output">Total test questions: 9
+Easy: 3
+Average: 3
+Difficult: 3
+</pre></div></section><section class="cell markdown-cell"><h4>15C. Run the Retrieval Experiment</h4><p>This section runs the same nine questions against each of the twelve FAISS indexes. The questions are encoded once using the same embedding model used for the document chunks. Reusing the question embeddings keeps the experiment efficient while ensuring that the query representation remains identical across all configurations.</p><p>For each configuration, FAISS retrieves the three chunks with the highest similarity scores. The retrieved position is matched with the corresponding chunk from that configuration so that its chunk identifier, PDF page, similarity score, and complete text can be recorded.</p><p>The resulting retrieval log also includes the question difficulty, expected answer, expected source, and required evidence units. The <code>Relevant</code> and <code>Evidence_Covered</code> fields are intentionally left blank because relevance must be judged by checking whether the retrieved text genuinely supports the answer. A related keyword or topic alone is not enough to mark a chunk as relevant.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 19</p><pre><code># ============================================================
+# 15C. RUN THE RETRIEVAL EXPERIMENT
+# ============================================================
+
+print(&quot;\n&quot;)
+print(&quot;=&quot; * 70)
+print(&quot;RUNNING RETRIEVAL EXPERIMENT&quot;)
+print(&quot;=&quot; * 70)
+
+# Encode the nine questions once so every configuration
+# receives exactly the same query vectors.
+question_texts = [
+    item[&quot;question&quot;]
+    for item in TEST_QUESTIONS
+]
+
+question_embeddings = embedding_model.encode(
+    question_texts,
+    convert_to_numpy=True,
+    normalize_embeddings=True,
+    show_progress_bar=False
+)
+
+question_embeddings = question_embeddings.astype(
+    &quot;float32&quot;
+)
+
+retrieval_records = []
+
+for configuration in CHUNK_CONFIGURATIONS:
+
+    config_id = configuration[&quot;config&quot;]
+    configuration_store = experiment_vector_stores[config_id]
+
+    configuration_index = configuration_store[&quot;index&quot;]
+    configuration_chunks = configuration_store[&quot;chunks&quot;]
+
+    search_k = min(
+        TOP_K,
+        configuration_index.ntotal
+    )
+
+    scores, indices = configuration_index.search(
+        question_embeddings,
+        search_k
+    )
+
+    for question_position, question_data in enumerate(TEST_QUESTIONS):
+
+        for result_position in range(search_k):
+
+            chunk_position = int(
+                indices[question_position][result_position]
+            )
+
+            if chunk_position == -1:
+                continue
+
+            retrieved_chunk = configuration_chunks[
+                chunk_position
+            ]
+
+            retrieval_records.append({
+                &quot;Configuration&quot;: config_id,
+                &quot;Chunk_Size&quot;: configuration[&quot;chunk_size&quot;],
+                &quot;Chunk_Overlap&quot;: configuration[&quot;chunk_overlap&quot;],
+                &quot;Total_Chunks&quot;: configuration_store[&quot;total_chunks&quot;],
+                &quot;Indexing_Time_Seconds&quot;: round(
+                    configuration_store[
+                        &quot;processing_time_seconds&quot;
+                    ],
+                    4
+                ),
+                &quot;Question_ID&quot;: question_data[&quot;question_id&quot;],
+                &quot;Difficulty&quot;: question_data[&quot;difficulty&quot;],
+                &quot;Question&quot;: question_data[&quot;question&quot;],
+                &quot;Expected_Answer&quot;: question_data[&quot;expected_answer&quot;],
+                &quot;Expected_Source&quot;: question_data[&quot;source_reference&quot;],
+                &quot;Expected_Evidence&quot;: &quot;, &quot;.join(
+                    question_data[&quot;evidence_units&quot;]
+                ),
+                &quot;Retrieved_Rank&quot;: result_position + 1,
+                &quot;Retrieved_Chunk_ID&quot;: retrieved_chunk[&quot;chunk_id&quot;],
+                &quot;Retrieved_Page&quot;: retrieved_chunk[&quot;page&quot;],
+                &quot;Similarity_Score&quot;: float(
+                    scores[question_position][result_position]
+                ),
+                &quot;Retrieved_Chunk_Text&quot;: retrieved_chunk[&quot;text&quot;],
+
+                # These two fields will be completed after
+                # manually reviewing the retrieved evidence.
+                &quot;Relevant&quot;: &quot;&quot;,
+                &quot;Evidence_Covered&quot;: &quot;&quot;
+            })
+
+    print(
+        f&quot;{config_id}: &quot;
+        f&quot;{len(TEST_QUESTIONS)} questions completed, &quot;
+        f&quot;top {search_k} retrieved&quot;
+    )
+
+
+retrieval_log_df = pd.DataFrame(
+    retrieval_records
+)
+
+expected_rows = (
+    len(CHUNK_CONFIGURATIONS)
+    * len(TEST_QUESTIONS)
+    * TOP_K
+)
+
+print(&quot;\n&quot;)
+print(&quot;=&quot; * 70)
+print(&quot;RETRIEVAL EXPERIMENT SUMMARY&quot;)
+print(&quot;=&quot; * 70)
+
+print(&quot;Configurations tested :&quot;, len(CHUNK_CONFIGURATIONS))
+print(&quot;Questions tested      :&quot;, len(TEST_QUESTIONS))
+print(&quot;Top-K                 :&quot;, TOP_K)
+print(&quot;Expected records      :&quot;, expected_rows)
+print(&quot;Actual records        :&quot;, len(retrieval_log_df))
+
+if len(retrieval_log_df) == expected_rows:
+    print(&quot;Status                : COMPLETE&quot;)
+else:
+    print(&quot;Status                : CHECK THE RETRIEVAL RESULTS&quot;)</code></pre><div class="outputs"><pre class="output">
+
+======================================================================
+RUNNING RETRIEVAL EXPERIMENT
+======================================================================
+C1: 9 questions completed, top 3 retrieved
+C2: 9 questions completed, top 3 retrieved
+C3: 9 questions completed, top 3 retrieved
+C4: 9 questions completed, top 3 retrieved
+C5: 9 questions completed, top 3 retrieved
+C6: 9 questions completed, top 3 retrieved
+C7: 9 questions completed, top 3 retrieved
+C8: 9 questions completed, top 3 retrieved
+C9: 9 questions completed, top 3 retrieved
+C10: 9 questions completed, top 3 retrieved
+C11: 9 questions completed, top 3 retrieved
+C12: 9 questions completed, top 3 retrieved
+
+
+======================================================================
+RETRIEVAL EXPERIMENT SUMMARY
+======================================================================
+Configurations tested : 12
+Questions tested      : 9
+Top-K                 : 3
+Expected records      : 324
+Actual records        : 324
+Status                : COMPLETE
+</pre></div></section><section class="cell markdown-cell"><h4>15D. Export the Experimental Retrieval Log</h4><p>This section saves the chunking experiment results in a structured Excel workbook. The detailed retrieval log contains one row for every retrieved chunk, resulting in 324 records from twelve configurations, nine questions, and three retrieval ranks.</p><p>Separate worksheets are included for the configuration settings, question ground truth, performance by difficulty, and detailed retrieval records. The metric columns remain empty at this stage because they can only be calculated after the retrieved chunks have been reviewed for relevance.</p><p>The <code>Relevant</code> and <code>Evidence_Covered</code> columns in the detailed log are intended for manual evaluation. A chunk should be marked relevant only when its text contains evidence that genuinely supports the expected answer. This review creates the labels needed to calculate Precision@3, Recall@3, and MRR@3 consistently.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 20</p><pre><code># ============================================================
+# 15D. EXPORT THE EXPERIMENTAL RETRIEVAL LOG
+# ============================================================
+
+from openpyxl import load_workbook
+from openpyxl.utils import get_column_letter
+
+EXPERIMENT_LOG_FILE = (
+    &quot;FAISS_Chunking_Experiment_Retrieval_Log.xlsx&quot;
+)
+
+
+# ------------------------------------------------------------
+# PREPARE THE CONFIGURATION SUMMARY
+# ------------------------------------------------------------
+
+configuration_rows = []
+
+for configuration in CHUNK_CONFIGURATIONS:
+
+    config_id = configuration[&quot;config&quot;]
+    configuration_store = experiment_vector_stores[config_id]
+
+    configuration_rows.append({
+        &quot;Configuration&quot;: config_id,
+        &quot;Chunk_Size&quot;: configuration[&quot;chunk_size&quot;],
+        &quot;Chunk_Overlap&quot;: configuration[&quot;chunk_overlap&quot;],
+        &quot;Total_Chunks&quot;: configuration_store[&quot;total_chunks&quot;],
+        &quot;Indexing_Time_Seconds&quot;: round(
+            configuration_store[
+                &quot;processing_time_seconds&quot;
+            ],
+            4
+        ),
+        &quot;Precision_at_3&quot;: &quot;&quot;,
+        &quot;Recall_at_3&quot;: &quot;&quot;,
+        &quot;MRR_at_3&quot;: &quot;&quot;
+    })
+
+configuration_summary_df = pd.DataFrame(
+    configuration_rows
+)
+
+
+# ------------------------------------------------------------
+# PREPARE THE DIFFICULTY SUMMARY
+# ------------------------------------------------------------
+
+difficulty_rows = []
+
+for configuration in CHUNK_CONFIGURATIONS:
+
+    for difficulty in [&quot;Easy&quot;, &quot;Average&quot;, &quot;Difficult&quot;]:
+
+        difficulty_rows.append({
+            &quot;Configuration&quot;: configuration[&quot;config&quot;],
+            &quot;Difficulty&quot;: difficulty,
+            &quot;Precision_at_3&quot;: &quot;&quot;,
+            &quot;Recall_at_3&quot;: &quot;&quot;,
+            &quot;MRR_at_3&quot;: &quot;&quot;
+        })
+
+difficulty_summary_df = pd.DataFrame(
+    difficulty_rows
+)
+
+
+# ------------------------------------------------------------
+# PREPARE THE GROUND-TRUTH TABLE
+# ------------------------------------------------------------
+
+ground_truth_rows = []
+
+for question_data in TEST_QUESTIONS:
+
+    ground_truth_rows.append({
+        &quot;Question_ID&quot;: question_data[&quot;question_id&quot;],
+        &quot;Difficulty&quot;: question_data[&quot;difficulty&quot;],
+        &quot;Question&quot;: question_data[&quot;question&quot;],
+        &quot;Expected_Answer&quot;: question_data[&quot;expected_answer&quot;],
+        &quot;Expected_Source&quot;: question_data[&quot;source_reference&quot;],
+        &quot;Expected_Evidence&quot;: &quot;, &quot;.join(
+            question_data[&quot;evidence_units&quot;]
+        )
+    })
+
+ground_truth_df = pd.DataFrame(
+    ground_truth_rows
+)
+
+
+# ------------------------------------------------------------
+# WRITE THE WORKBOOK
+# ------------------------------------------------------------
+
+with pd.ExcelWriter(
+    EXPERIMENT_LOG_FILE,
+    engine=&quot;openpyxl&quot;
+) as writer:
+
+    configuration_summary_df.to_excel(
+        writer,
+        sheet_name=&quot;Configuration_Results&quot;,
+        index=False
+    )
+
+    difficulty_summary_df.to_excel(
+        writer,
+        sheet_name=&quot;Difficulty_Performance&quot;,
+        index=False
+    )
+
+    ground_truth_df.to_excel(
+        writer,
+        sheet_name=&quot;Ground_Truth&quot;,
+        index=False
+    )
+
+    retrieval_log_df.to_excel(
+        writer,
+        sheet_name=&quot;Detailed_Retrieval_Log&quot;,
+        index=False
+    )
+
+
+# ------------------------------------------------------------
+# FORMAT THE WORKBOOK
+# ------------------------------------------------------------
+
+workbook = load_workbook(
+    EXPERIMENT_LOG_FILE
+)
+
+header_fill = PatternFill(
+    fill_type=&quot;solid&quot;,
+    fgColor=&quot;1F4E78&quot;
+)
+
+header_font = Font(
+    color=&quot;FFFFFF&quot;,
+    bold=True
+)
+
+for worksheet in workbook.worksheets:
+
+    worksheet.freeze_panes = &quot;A2&quot;
+    worksheet.auto_filter.ref = worksheet.dimensions
+
+    for cell in worksheet[1]:
+
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(
+            horizontal=&quot;center&quot;,
+            vertical=&quot;center&quot;,
+            wrap_text=True
+        )
+
+    for row in worksheet.iter_rows(
+        min_row=2
+    ):
+
+        for cell in row:
+
+            cell.alignment = Alignment(
+                vertical=&quot;top&quot;,
+                wrap_text=True
+            )
+
+    # Assign a readable default width.
+    for column_number in range(
+        1,
+        worksheet.max_column + 1
+    ):
+
+        worksheet.column_dimensions[
+            get_column_letter(column_number)
+        ].width = 18
+
+
+# Adjust the longer text columns.
+ground_truth_sheet = workbook[&quot;Ground_Truth&quot;]
+
+ground_truth_sheet.column_dimensions[&quot;C&quot;].width = 60
+ground_truth_sheet.column_dimensions[&quot;D&quot;].width = 60
+ground_truth_sheet.column_dimensions[&quot;E&quot;].width = 48
+ground_truth_sheet.column_dimensions[&quot;F&quot;].width = 30
+
+
+retrieval_sheet = workbook[&quot;Detailed_Retrieval_Log&quot;]
+
+retrieval_sheet.column_dimensions[&quot;H&quot;].width = 60
+retrieval_sheet.column_dimensions[&quot;I&quot;].width = 60
+retrieval_sheet.column_dimensions[&quot;J&quot;].width = 48
+retrieval_sheet.column_dimensions[&quot;K&quot;].width = 25
+retrieval_sheet.column_dimensions[&quot;P&quot;].width = 90
+retrieval_sheet.column_dimensions[&quot;Q&quot;].width = 14
+retrieval_sheet.column_dimensions[&quot;R&quot;].width = 25
+
+
+# Give the detailed records enough height to preview their text.
+for row_number in range(
+    2,
+    retrieval_sheet.max_row + 1
+):
+    retrieval_sheet.row_dimensions[
+        row_number
+    ].height = 60
+
+
+workbook.save(
+    EXPERIMENT_LOG_FILE
+)
+
+
+# ------------------------------------------------------------
+# VERIFY AND DOWNLOAD
+# ------------------------------------------------------------
+
+print(&quot;\n&quot;)
+print(&quot;=&quot; * 70)
+print(&quot;EXPERIMENT LOG CREATED&quot;)
+print(&quot;=&quot; * 70)
+
+print(&quot;File:&quot;, EXPERIMENT_LOG_FILE)
+print(
+    &quot;Configuration rows:&quot;,
+    len(configuration_summary_df)
+)
+print(
+    &quot;Difficulty rows:&quot;,
+    len(difficulty_summary_df)
+)
+print(
+    &quot;Ground-truth questions:&quot;,
+    len(ground_truth_df)
+)
+print(
+    &quot;Detailed retrieval rows:&quot;,
+    len(retrieval_log_df)
+)
+
+files.download(
+    EXPERIMENT_LOG_FILE
+)</code></pre><div class="outputs"><pre class="output">
+
+======================================================================
+EXPERIMENT LOG CREATED
+======================================================================
+File: FAISS_Chunking_Experiment_Retrieval_Log.xlsx
+Configuration rows: 12
+Difficulty rows: 36
+Ground-truth questions: 9
+Detailed retrieval rows: 324
+</pre><pre class="output">&lt;IPython.core.display.Javascript object&gt;</pre><pre class="output">&lt;IPython.core.display.Javascript object&gt;</pre></div></section><section class="cell markdown-cell"><h4>16. Link vector positions to chunk metadata</h4><p>FAISS stores vectors by numeric position and returns those positions during a search. The <code>chunk_lookup</code> dictionary connects each position to the corresponding entry in <code>chunks</code>, including its identifier, page, and original text.</p><p>This mapping turns a numerical search result into evidence that can be read and cited. It also depends on the order preserved during text extraction and embedding, which is why the earlier cells avoid rearranging the chunk list.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 21</p><pre><code># ============================================================
+# 16. CREATE CHUNK LOOKUP
+# ============================================================
+
+# The embedding row index corresponds to the position
+# of the chunk in the chunks list.
+
+chunk_lookup = {
+    position: chunk
+    for position, chunk in enumerate(chunks)
+}
+
+
+</code></pre></section><section class="cell markdown-cell"><h4>17. Define the basic retrieval function</h4><p>The <code>retrieve_documents()</code> function provides the first complete test of the vector store. It begins by validating the question and <code>top_k</code> value so that empty input or an invalid result count is rejected with a clear message. The question is then encoded by the same <code>embedding_model</code>, normalized, and converted to <code>float32</code> to match the document vectors.</p><p><code>search_k</code> prevents the function from requesting more results than the index contains. The call to <code>index.search()</code> returns similarity scores and vector positions. Each valid position is translated through <code>chunk_lookup</code>, allowing the function to recover the matched passage, page number, and chunk identifier.</p><p>The function also considers the matched chunk together with its immediately previous and next positions. A page check prevents these neighboring positions from crossing into a different PDF page, and <code>seen_chunk_ids</code> prevents duplicates when neighboring groups overlap. This extra context can help when a sentence or rule continues just beyond the highest-scoring chunk.</p><p>Every returned result records both its displayed order and the rank of the center match that introduced it. It also carries the similarity score and full text. I find this structure useful because later cells can display the evidence clearly without repeating the details of FAISS search and metadata lookup.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 22</p><pre><code># ============================================================
+# 17. DEFINE RETRIEVAL FUNCTION
+# ============================================================
+
+def retrieve_documents(
+    query,
+    top_k=3
+):
+    &quot;&quot;&quot;
+    Retrieve the top matching chunks using FAISS.
+
+    Returns chunk ID, page, similarity score, and text.
+    &quot;&quot;&quot;
+
+    if not query or not query.strip():
+        raise ValueError(&quot;The query cannot be empty.&quot;)
+
+    if top_k &lt;= 0:
+        raise ValueError(&quot;top_k must be greater than 0.&quot;)
+
+    # Convert the question into an embedding.
+    query_embedding = embedding_model.encode(
+        [query],
+        convert_to_numpy=True,
+        normalize_embeddings=True
+    )
+
+    query_embedding = query_embedding.astype(&quot;float32&quot;)
+
+    # Avoid requesting more results than available vectors.
+    search_k = min(top_k, index.ntotal)
+
+    # Search the FAISS vector store.
+    scores, indices = index.search(
+        query_embedding,
+        search_k
+    )
+
+    results = []
+    seen_chunk_ids = set()
+
+    for rank, idx in enumerate(indices[0]):
+
+        if idx == -1:
+            continue
+
+        center_position = int(idx)
+        center_chunk = chunk_lookup[center_position]
+        center_page = center_chunk[&quot;page&quot;]
+        center_score = float(scores[0][rank])
+
+        # Include the preceding chunk before the matched chunk.
+        # This helps preserve headings and rule context.
+        candidate_positions = [
+            center_position - 1,
+            center_position
+        ]
+
+        for position in candidate_positions:
+
+            if position not in chunk_lookup:
+                continue
+
+            chunk = chunk_lookup[position]
+
+            # Never cross into another PDF page.
+            if chunk[&quot;page&quot;] != center_page:
+                continue
+
+            if chunk[&quot;chunk_id&quot;] in seen_chunk_ids:
+                continue
+
+            seen_chunk_ids.add(chunk[&quot;chunk_id&quot;])
+
+            results.append({
+                &quot;rank&quot;: len(results) + 1,
+                &quot;retrieval_rank&quot;: rank + 1,
+                &quot;chunk_id&quot;: chunk[&quot;chunk_id&quot;],
+                &quot;page&quot;: chunk[&quot;page&quot;],
+                &quot;score&quot;: center_score,
+                &quot;text&quot;: chunk[&quot;text&quot;]
+            })
+
+    return results
+
+
+</code></pre></section><section class="cell markdown-cell"><h4>18. Test the vector store</h4><p>This optional cell allows a question to be entered immediately after the index is created. If the input is not empty, it calls <code>retrieve_documents()</code> and prints each result with its chunk identifier, page, similarity score, and text. This gives a direct way to see whether semantic retrieval is pointing toward the expected handbook section.</p><p>Pressing Enter skips the test without affecting the saved index. I can therefore use the same notebook either interactively, when I want to inspect retrieval, or more quickly when I only need to prepare the files for Component II.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 23</p><pre><code># ============================================================
+# 18. TEST RETRIEVAL
+# ============================================================
+
+print(&quot;\n&quot;)
+print(&quot;=&quot; * 70)
+print(&quot;TESTING VECTOR STORE&quot;)
+print(&quot;=&quot; * 70)
+
+test_query = input(
+    &quot;\nEnter a test question &quot;
+    &quot;(or press Enter to skip): &quot;
+)
+
+if test_query.strip():
+
+    test_results = retrieve_documents(
+        test_query,
+        TOP_K
+    )
+
+    print(&quot;\n&quot;)
+    print(&quot;=&quot; * 70)
+    print(&quot;RETRIEVED CHUNKS&quot;)
+    print(&quot;=&quot; * 70)
+
+    for result in test_results:
+
+        print(f&quot;\nRESULT {result[&#x27;rank&#x27;]}&quot;)
+        print(f&quot;Chunk ID   : {result[&#x27;chunk_id&#x27;]}&quot;)
+        print(f&quot;Page       : {result[&#x27;page&#x27;]}&quot;)
+        print(f&quot;Similarity : {result[&#x27;score&#x27;]:.4f}&quot;)
+
+        print(&quot;-&quot; * 70)
+
+        print(result[&quot;text&quot;])
+
+
+</code></pre><div class="outputs"><pre class="output">
+
+======================================================================
+TESTING VECTOR STORE
+======================================================================
+
+Enter a test question (or press Enter to skip): 
+</pre></div></section><section class="cell markdown-cell"><h4>19. Save the FAISS index</h4><p>The completed FAISS structure is saved as <code>rag_faiss.index</code> through <code>faiss.write_index()</code>. This file contains the document vectors in a form FAISS can reload later.</p><p>Saving the index avoids repeating extraction and embedding whenever the same handbook is reused. The printed filename also confirms where the vector store was written in the current Colab session.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 24</p><pre><code># ============================================================
+# 19. SAVE FAISS INDEX
+# ============================================================
+
+FAISS_FILE = &quot;rag_faiss.index&quot;
+
+faiss.write_index(
+    index,
+    FAISS_FILE
+)
+
+print(&quot;\nFAISS index saved:&quot;, FAISS_FILE)
+
+
+</code></pre><div class="outputs"><pre class="output">
+FAISS index saved: rag_faiss.index
+</pre></div></section><section class="cell markdown-cell"><h4>20. Save the chunks and their metadata</h4><p>This section stores the <code>chunks</code> list in <code>rag_chunks.pkl</code> using pickle. The FAISS file alone only knows vector positions, so the saved chunk metadata is necessary to recover the readable passage, source page, and chunk identifier associated with each position.</p><p>The index and metadata files should therefore be treated as a pair. Loading one without the other would either remove the search capability or remove the information needed to understand the search results.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 25</p><pre><code># ============================================================
+# 20. SAVE CHUNKS AND METADATA
+# ============================================================
+
+CHUNKS_FILE = &quot;rag_chunks.pkl&quot;
+
+with open(CHUNKS_FILE, &quot;wb&quot;) as f:
+
+    pickle.dump(
+        chunks,
+        f
+    )
+
+print(&quot;Chunks saved:&quot;, CHUNKS_FILE)
+
+
+</code></pre><div class="outputs"><pre class="output">Chunks saved: rag_chunks.pkl
+</pre></div></section><section class="cell markdown-cell"><h4>21. Save the indexing configuration</h4><p>The <code>config</code> dictionary records the chunk size, overlap, default retrieval count, embedding model, and source filename used for the current index. It is saved as <code>rag_config.pkl</code> so that the experiment settings remain available with the vector store.</p><p>This small file supports reproducibility. If retrieval behavior changes after another experiment, the saved configuration helps confirm whether the difference came from the document, the embedding model, or the chunking values.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 26</p><pre><code># ============================================================
+# 21. SAVE INDEXING CONFIGURATION
+# ============================================================
+
+CONFIG_FILE = &quot;rag_config.pkl&quot;
+
+config = {
+    &quot;chunk_size&quot;: CHUNK_SIZE,
+    &quot;chunk_overlap&quot;: CHUNK_OVERLAP,
+    &quot;top_k&quot;: TOP_K,
+    &quot;embedding_model&quot;: EMBEDDING_MODEL_NAME,
+    &quot;source_document&quot;: pdf_file
+}
+
+with open(CONFIG_FILE, &quot;wb&quot;) as f:
+
+    pickle.dump(
+        config,
+        f
+    )
+
+print(&quot;Configuration saved:&quot;, CONFIG_FILE)
+
+
+</code></pre><div class="outputs"><pre class="output">Configuration saved: rag_config.pkl
+</pre></div></section><section class="cell markdown-cell"><h4>22. Confirm that indexing is complete</h4><p>The last cell in Component I prints a summary of the indexed document, number of chunks, number of stored vectors, selected chunk settings, and embedding model. It also lists the files created during the workflow.</p><p>This summary gives the indexing stage a clear ending. Before moving into prompt processing, I can check that the vector count matches the chunk count and that the displayed settings are the ones intended for the experiment.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 27</p><pre><code># ============================================================
+# 22. INDEXING COMPLETE
+# ============================================================
+
+print(&quot;\n&quot;)
+print(&quot;=&quot; * 70)
+print(&quot;INDEXING COMPLETE&quot;)
+print(&quot;=&quot; * 70)
+
+print(&quot;Source document :&quot;, pdf_file)
+print(&quot;Number of chunks:&quot;, len(chunks))
+print(&quot;Vectors stored  :&quot;, index.ntotal)
+print(&quot;Chunk size      :&quot;, CHUNK_SIZE)
+print(&quot;Chunk overlap   :&quot;, CHUNK_OVERLAP)
+print(&quot;Embedding model :&quot;, EMBEDDING_MODEL_NAME)
+
+print(&quot;\nSaved files:&quot;)
+print(&quot;  &quot;, EXCEL_FILE)
+print(&quot;  &quot;, FAISS_FILE)
+print(&quot;  &quot;, CHUNKS_FILE)
+print(&quot;  &quot;, CONFIG_FILE)
+
+print(&quot;\nThe vector store is ready for retrieval.&quot;)
+print(
+    &quot;Inspect the downloaded Excel workbook to evaluate &quot;
+    &quot;the generated chunks.&quot;
+)
+</code></pre><div class="outputs"><pre class="output">
+
+======================================================================
+INDEXING COMPLETE
+======================================================================
+Source document : Workers-Statutory-Monetary-Benefits-Handbook-2024-Edition.pdf
+Number of chunks: 217
+Vectors stored  : 217
+Chunk size      : 1000
+Chunk overlap   : 200
+Embedding model : all-MiniLM-L6-v2
+
+Saved files:
+   Workers-Statutory-Monetary-Benefits-Handbook-2024-Edition_chunks_inspection.xlsx
+   rag_faiss.index
+   rag_chunks.pkl
+   rag_config.pkl
+
+The vector store is ready for retrieval.
+Inspect the downloaded Excel workbook to evaluate the generated chunks.
+</pre></div></section><section class="cell markdown-cell"><h2>Component II: Prompt and Retrieval</h2></section><section class="cell markdown-cell"><h4>1. Import the prompt and generation tools</h4><p>Component II imports the classes needed for language-model inference and reranking. <code>AutoTokenizer</code> prepares text for Qwen, while <code>AutoModelForCausalLM</code> loads the model that generates the final response. <code>CrossEncoder</code> supplies the relevance model used after the initial FAISS search.</p><p>PyTorch manages device selection, tensor movement, numerical precision, and generation without gradient calculations. The regular-expression module is used later to remove any thinking tags that might remain in the decoded response. These imports build on the index, chunks, embedding model, and lookup table that are already available from Component I.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 28</p><pre><code>
+# ============================================================
+# RAG PROMPT PROCESSING
+# TOKEN-LIMITED CONTEXT, ANSWER GENERATION, AND DIAGNOSTICS
+# Model: Qwen/Qwen3-1.7B with generic cross-encoder reranking
+# ============================================================
+
+
+# ============================================================
+# 1. IMPORT REQUIRED LIBRARIES
+# ============================================================
+
+from transformers import (
+    AutoTokenizer,
+    AutoModelForCausalLM
+)
+
+from sentence_transformers import CrossEncoder
+
+import torch
+import re
+
+
+</code></pre></section><section class="cell markdown-cell"><h4>2. Select the available execution device</h4><p>This cell checks <code>torch.cuda.is_available()</code> and chooses either CUDA or CPU. When a GPU is available, the model uses <code>torch.float16</code> to reduce memory use. The CPU fallback uses <code>torch.float32</code>, which is more broadly supported but noticeably slower for generation and reranking.</p><p>The selected device and GPU name are printed before the models are loaded. This observation is important in Colab because selecting a T4 runtime in the menu does not always guarantee that the active session is currently connected to it. The warning makes an unintended CPU session visible before a long model-loading step begins.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 29</p><pre><code># ============================================================
+# 2. CHECK DEVICE
+# ============================================================
+
+device = &quot;cuda&quot; if torch.cuda.is_available() else &quot;cpu&quot;
+model_dtype = torch.float16 if device == &quot;cuda&quot; else torch.float32
+
+print(&quot;=&quot; * 70)
+print(&quot;RAG PROMPT PROCESSING&quot;)
+print(&quot;=&quot; * 70)
+
+print(&quot;Device:&quot;, device)
+
+if device == &quot;cuda&quot;:
+    print(&quot;GPU:&quot;, torch.cuda.get_device_name(0))
+else:
+    print(&quot;WARNING: No GPU was detected. CPU fallback will be slow.&quot;)
+
+
+</code></pre><div class="outputs"><pre class="output">======================================================================
+RAG PROMPT PROCESSING
+======================================================================
+Device: cuda
+GPU: Tesla T4
+</pre></div></section><section class="cell markdown-cell"><h4>3. Load Qwen and the reranking model</h4><p>The language model is identified as <code>Qwen/Qwen3-1.7B</code>. The cell also sets the maximum input length, maximum generated tokens, and a reserved margin that protects the prompt budget. These values define how much retrieved evidence can be shown to Qwen and how long its answer may become.</p><p><code>AutoTokenizer.from_pretrained()</code> loads Qwen&#x27;s tokenizer, and <code>AutoModelForCausalLM.from_pretrained()</code> loads the model weights using the precision selected in the previous cell. The model is moved to the active device and placed in evaluation mode because the notebook performs inference rather than training.</p><p>The cross-encoder reranker is then loaded on the same device. It has a different responsibility from Qwen: it compares the full question with each candidate passage and assigns a relevance score. Loading both models here makes the later retrieval and generation functions shorter and allows their initialization messages to be reviewed in one place.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 30</p><pre><code># ============================================================
+# 3. LOAD THE LOCAL LLM
+# ============================================================
+
+LLM_NAME = &quot;Qwen/Qwen3-1.7B&quot;
+
+MAX_INPUT_TOKENS = 4096
+MAX_NEW_TOKENS = 128
+
+# Reserve space within the input budget for safety.
+RESERVED_TOKEN_MARGIN = 64
+
+print(&quot;\nLoading language model:&quot;)
+print(LLM_NAME)
+
+tokenizer = AutoTokenizer.from_pretrained(
+    LLM_NAME
+)
+
+llm = AutoModelForCausalLM.from_pretrained(
+    LLM_NAME,
+    dtype=model_dtype
+)
+
+llm = llm.to(device)
+llm.eval()
+
+print(&quot;Language model loaded.&quot;)
+
+RERANKER_NAME = &quot;cross-encoder/ms-marco-MiniLM-L-6-v2&quot;
+
+print(&quot;\nLoading reranking model:&quot;)
+print(RERANKER_NAME)
+
+reranker = CrossEncoder(
+    RERANKER_NAME,
+    device=device
+)
+
+print(&quot;Reranking model loaded.&quot;)
+
+
+</code></pre><div class="outputs"><pre class="output">
+Loading language model:
+Qwen/Qwen3-1.7B
+</pre><pre class="output">config.json:   0%|          | 0.00/726 [00:00&lt;?, ?B/s]</pre><pre class="output">tokenizer_config.json:   0%|          | 0.00/9.73k [00:00&lt;?, ?B/s]</pre><pre class="output">vocab.json:   0%|          | 0.00/2.78M [00:00&lt;?, ?B/s]</pre><pre class="output">merges.txt:   0%|          | 0.00/1.67M [00:00&lt;?, ?B/s]</pre><pre class="output">tokenizer.json: reconstructing file:   0%|          |  0.00B / 11.4MB            </pre><pre class="output">tokenizer.json: downloading bytes:           |  0.00B            </pre><pre class="output">model.safetensors.index.json:   0%|          | 0.00/25.6k [00:00&lt;?, ?B/s]</pre><pre class="output">Downloading bytes:           |  0.00B            </pre><pre class="output">Reconstructing (incomplete total...): |          |  0.00B /  0.00B            </pre><pre class="output">Fetching 2 files:   0%|          | 0/2 [00:00&lt;?, ?it/s]</pre><pre class="output">Loading weights:   0%|          | 0/311 [00:00&lt;?, ?it/s]</pre><pre class="output">generation_config.json:   0%|          | 0.00/239 [00:00&lt;?, ?B/s]</pre><pre class="output">Language model loaded.
+
+Loading reranking model:
+cross-encoder/ms-marco-MiniLM-L-6-v2
+</pre><pre class="output">config.json:   0%|          | 0.00/794 [00:00&lt;?, ?B/s]</pre><pre class="output">model.safetensors: reconstructing file:   0%|          |  0.00B / 90.9MB            </pre><pre class="output">model.safetensors: downloading bytes:           |  0.00B            </pre><pre class="output">Loading weights:   0%|          | 0/105 [00:00&lt;?, ?it/s]</pre><pre class="output">tokenizer_config.json:   0%|          | 0.00/1.33k [00:00&lt;?, ?B/s]</pre><pre class="output">vocab.txt:   0%|          | 0.00/232k [00:00&lt;?, ?B/s]</pre><pre class="output">tokenizer.json:   0%|          | 0.00/711k [00:00&lt;?, ?B/s]</pre><pre class="output">special_tokens_map.json:   0%|          | 0.00/132 [00:00&lt;?, ?B/s]</pre><pre class="output">Reranking model loaded.
+</pre></div></section><section class="cell markdown-cell"><h4>4. Define token counting and chat formatting</h4><p>The <code>count_tokens()</code> helper measures text with the active Qwen tokenizer. Character counts are not reliable for prompt budgeting because words and punctuation can be divided into tokens in different ways. By calling <code>tokenizer.encode()</code> without truncation, the notebook can check the real input length before generation.</p><p><code>ANSWER_SYSTEM_MESSAGE</code> defines the model&#x27;s role as a document-grounded Philippine labor-benefits assistant. It tells Qwen to remain concise, rely only on the supplied handbook evidence, and avoid combining unrelated rules. Keeping this instruction in a named variable makes its purpose clear and allows the same wording to be reused consistently.</p><p>The <code>format_qwen_chat_prompt()</code> function creates a conversation containing one system message and one user message. <code>tokenizer.apply_chat_template()</code> converts that conversation into the exact text format expected by Qwen. Thinking mode is disabled so the model produces a direct answer rather than exposing a longer internal reasoning sequence.</p><p>Together, these helpers create a consistent boundary between ordinary text and model-ready input. Later functions can focus on selecting evidence and generating answers without having to repeat the tokenizer-specific formatting details.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 31</p><pre><code># ============================================================
+# 4. DEFINE TOKEN COUNTING FUNCTION
+# ============================================================
+
+def count_tokens(text):
+
+    return len(
+        tokenizer.encode(
+            text,
+            add_special_tokens=False,
+            truncation=False
+        )
+    )
+
+
+ANSWER_SYSTEM_MESSAGE = (
+    &quot;You are a document-grounded Philippine labor-benefits &quot;
+    &quot;information assistant for workers. Answer concisely in English &quot;
+    &quot;using only the supplied handbook evidence. Do not guess, combine &quot;
+    &quot;unrelated rules, or use information outside the provided evidence.&quot;
+)
+
+
+def format_qwen_chat_prompt(user_content, system_content):
+    &quot;&quot;&quot;Apply Qwen3&#x27;s chat template with thinking disabled.&quot;&quot;&quot;
+
+    messages = [
+        {
+            &quot;role&quot;: &quot;system&quot;,
+            &quot;content&quot;: system_content
+        },
+        {
+            &quot;role&quot;: &quot;user&quot;,
+            &quot;content&quot;: user_content
+        }
+    ]
+
+    return tokenizer.apply_chat_template(
+        messages,
+        tokenize=False,
+        add_generation_prompt=True,
+        enable_thinking=False
+    )
+
+
+</code></pre></section><section class="cell markdown-cell"><h4>5. Preserve reranker priority</h4><p>The <code>prioritize_documents()</code> function sorts the retrieved dictionaries according to their <code>score</code>, placing the largest cross-encoder value first. A missing score is treated as negative infinity, so incomplete entries naturally fall to the end rather than interrupting the process.</p><p>Although the reranked retrieval function already returns ordered results, this additional sort keeps prompt construction defensive. It ensures that the strongest available evidence receives the first opportunity to fit within the token budget.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 32</p><pre><code># ============================================================
+# 5. PRIORITIZE RETRIEVED DOCUMENTS
+# ============================================================
+
+def prioritize_documents(question, retrieved_documents):
+    &quot;&quot;&quot;
+    Preserve cross-encoder relevance ranking.
+    &quot;&quot;&quot;
+
+    return sorted(
+        retrieved_documents,
+        key=lambda result: result.get(&quot;score&quot;, float(&quot;-inf&quot;)),
+        reverse=True
+    )
+
+
+
+</code></pre></section><section class="cell markdown-cell"><h4>6. Build a prompt within the token budget</h4><p>The <code>create_rag_prompt()</code> function is responsible for turning a question and retrieved passages into the final input sent to Qwen. It first validates the question and confirms that evidence was provided. The retrieved documents are then passed through <code>prioritize_documents()</code> so that passages with higher reranker scores are considered before weaker candidates.</p><p>The function creates a detailed request that explains how the answer should be grounded. It asks the model to identify the applicable benefit and conditions, distinguish an additional premium from a total rate, use exact figures only when supported, and avoid mixing rules for regular holidays, special days, rest days, ordinary hours, and overtime. It also defines the exact fallback sentence to use when the evidence does not support an answer. These instructions are especially important in this handbook because several neighboring provisions use similar percentages under different conditions.</p><p>Each retrieved passage is formatted with its PDF page and chunk identifier. The function tentatively adds one source at a time, builds the complete user message, and applies Qwen&#x27;s chat template. It then uses <code>count_tokens()</code> to measure the actual formatted prompt. If the next source would exceed <code>MAX_INPUT_TOKENS</code> after accounting for <code>RESERVED_TOKEN_MARGIN</code>, that source is not added.</p><p>This incremental approach protects the original question and core instructions instead of allowing evidence to be cut off silently. It also means the highest-ranked passages are most likely to remain in the prompt when space is limited. If even the basic question and instructions exceed the budget, the function raises an error because generating from a truncated request would hide an important problem.</p><p>Finally, the function prints diagnostics showing the original question, number of retrieved chunks, number actually included, final prompt length, and input limit. It returns the formatted prompt together with the included source records. These diagnostics make the prompt-building decision visible, which helps when reviewing why a useful passage did or did not reach the language model.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 33</p><pre><code># ============================================================
+# 6. DEFINE THE TOKEN-LIMITED RAG PROMPT
+# ============================================================
+
+def create_rag_prompt(
+    question,
+    retrieved_documents
+):
+    &quot;&quot;&quot;
+    Build a prompt that preserves the question and includes
+    as much relevant retrieved evidence as the input budget
+    allows.
+
+    Context is trimmed only at token boundaries.
+    &quot;&quot;&quot;
+
+    ranked_documents = prioritize_documents(
+        question,
+        retrieved_documents
+    )
+
+    instruction = (
+    &quot;Answer the worker&#x27;s question using only the supplied handbook &quot;
+    &quot;evidence. Identify the exact labor benefit and the conditions &quot;
+    &quot;that apply to the worker&#x27;s situation. Clearly distinguish a &quot;
+    &quot;total pay rate from an additional premium. Give the exact amount, &quot;
+    &quot;percentage, or formula only when it is directly supported by the &quot;
+    &quot;evidence. Do not combine rules for different worker categories, &quot;
+    &quot;benefits, regular holidays, special days, rest days, ordinary &quot;
+    &quot;working hours, or overtime. If the retrieved evidence describes &quot;
+    &quot;a different situation from the question, do not use that rule. &quot;
+    &quot;Answer directly and concisely in English. Do not include a PDF &quot;
+    &quot;page citation because the application adds the page number from &quot;
+    &quot;the highest-ranked source. Do not guess or use outside knowledge. &quot;
+    &quot;If the evidence does not directly support an answer, respond &quot;
+    &quot;exactly: &#x27;I cannot find the answer in the provided document.&#x27;&quot;
+)
+
+    # Keep the question near the beginning.
+    prompt_prefix = (
+        f&quot;Question: {question}\n\n&quot;
+        f&quot;{instruction}\n\n&quot;
+        &quot;Evidence:\n&quot;
+    )
+
+    prompt_suffix = &quot;\n\nAnswer:&quot;
+
+    # Tokenize the fixed parts first.
+    prefix_tokens = tokenizer.encode(
+        prompt_prefix,
+        add_special_tokens=False
+    )
+
+    suffix_tokens = tokenizer.encode(
+        prompt_suffix,
+        add_special_tokens=False
+    )
+
+    # Reserve tokens for Qwen&#x27;s system/user chat markers.
+    chat_wrapper_tokens = count_tokens(
+        format_qwen_chat_prompt(&quot;&quot;, ANSWER_SYSTEM_MESSAGE)
+    )
+
+    # Keep the final chat-formatted prompt within the limit.
+    available_context_tokens = (
+        MAX_INPUT_TOKENS
+        - len(prefix_tokens)
+        - len(suffix_tokens)
+        - chat_wrapper_tokens
+        - RESERVED_TOKEN_MARGIN
+    )
+
+    if available_context_tokens &lt;= 0:
+        raise ValueError(
+            &quot;The question and instructions leave no room &quot;
+            &quot;for retrieved evidence. Shorten the question.&quot;
+        )
+
+    selected_parts = []
+    remaining_tokens = available_context_tokens
+
+    for result in ranked_documents:
+
+        if remaining_tokens &lt;= 0:
+            break
+
+        source_text = (
+            f&quot;[Page {result[&#x27;page&#x27;]}, &quot;
+            f&quot;Chunk {result[&#x27;chunk_id&#x27;]}]\n&quot;
+            f&quot;{result[&#x27;text&#x27;]}&quot;
+        )
+
+        # Tokenize each source separately.
+        source_tokens = tokenizer.encode(
+            source_text,
+            add_special_tokens=False
+        )
+
+        separator_tokens = (
+            tokenizer.encode(
+                &quot;\n\n&quot;,
+                add_special_tokens=False
+            )
+            if selected_parts
+            else []
+        )
+
+        tokens_available = (
+            remaining_tokens - len(separator_tokens)
+        )
+
+        if tokens_available &lt;= 0:
+            break
+
+        # Include the full chunk when it fits.
+        # Otherwise, retain the beginning of the chunk.
+        included_tokens = source_tokens[
+            :tokens_available
+        ]
+
+        if not included_tokens:
+            continue
+
+        included_text = tokenizer.decode(
+            included_tokens,
+            skip_special_tokens=True,
+            clean_up_tokenization_spaces=False
+        )
+
+        selected_parts.append(included_text)
+
+        remaining_tokens -= (
+            len(separator_tokens)
+            + len(included_tokens)
+        )
+
+        # Stop if this chunk had to be truncated.
+        if len(included_tokens) &lt; len(source_tokens):
+            break
+
+    context = &quot;\n\n&quot;.join(selected_parts)
+
+    rag_content = (
+        prompt_prefix
+        + context
+        + prompt_suffix
+    )
+
+    # Apply Qwen&#x27;s chat template before final token counting.
+    prompt = format_qwen_chat_prompt(
+        rag_content,
+        ANSWER_SYSTEM_MESSAGE
+    )
+
+    # Final check using the actual Qwen tokenizer.
+    final_token_count = count_tokens(prompt)
+
+    if final_token_count &gt; MAX_INPUT_TOKENS:
+        raise ValueError(
+            f&quot;Prompt contains {final_token_count} tokens, &quot;
+            f&quot;exceeding the {MAX_INPUT_TOKENS}-token limit. &quot;
+            &quot;Reduce the context budget.&quot;
+        )
+
+    print(&quot;\n--- PROMPT DIAGNOSTICS ---&quot;)
+    print(&quot;Original question:&quot;, question)
+    print(&quot;Retrieved chunks:&quot;, len(retrieved_documents))
+    print(&quot;Chunks included:&quot;, len(selected_parts))
+    print(&quot;Final prompt tokens:&quot;, final_token_count)
+    print(&quot;Input token limit:&quot;, MAX_INPUT_TOKENS)
+
+    print(&quot;\n--- SELECTED EVIDENCE ---&quot;)
+
+    for i, part in enumerate(selected_parts, start=1):
+      print(f&quot;\nEvidence {i}:&quot;)
+      print(part)
+
+    return prompt
+
+
+</code></pre></section><section class="cell markdown-cell"><h4>7. Generate an answer safely</h4><p>The <code>generate_answer()</code> function receives the already formatted Qwen prompt and converts it into PyTorch tensors. Tokenization is performed without truncation because the previous function has already managed the input budget. The tensors are moved to the same device as the language model so generation does not fail because of a CPU and GPU mismatch.</p><p>The actual input length is checked again before inference. This second validation may appear cautious, but it protects the model if the function is called with a prompt that did not come from <code>create_rag_prompt()</code>. The cell prints the measured input and configured limit, making the final size visible immediately before generation.</p><p>Inside <code>torch.no_grad()</code>, <code>llm.generate()</code> produces up to <code>MAX_NEW_TOKENS</code> new tokens. Disabling gradients reduces memory use because the notebook is not training the model. Only the tokens appearing after the original prompt are selected, which prevents the decoded result from repeating the full system message, question, and evidence.</p><p>The new tokens are decoded into text, and regular expressions remove any remaining <code>&lt;think&gt;</code> block or tag. The final <code>.strip()</code> returns a clean answer. This cleanup supports the decision to present concise worker-facing output while still allowing Qwen to use its normal generation interface.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 34</p><pre><code># ============================================================
+# 7. DEFINE ANSWER GENERATION FUNCTION
+# ============================================================
+
+def generate_answer(
+    prompt,
+    max_new_tokens=MAX_NEW_TOKENS
+):
+    &quot;&quot;&quot;
+    Generate an answer without silently truncating the prompt.
+    &quot;&quot;&quot;
+
+    inputs = tokenizer(
+        prompt,
+        return_tensors=&quot;pt&quot;,
+        truncation=False,
+        add_special_tokens=False
+    )
+
+    input_length = inputs[&quot;input_ids&quot;].shape[1]
+
+    print(&quot;\n--- GENERATION DIAGNOSTICS ---&quot;)
+    print(&quot;Actual input tokens:&quot;, input_length)
+    print(&quot;Maximum input tokens:&quot;, MAX_INPUT_TOKENS)
+
+    if input_length &gt; MAX_INPUT_TOKENS:
+        raise ValueError(
+            f&quot;Input contains {input_length} tokens, &quot;
+            f&quot;but the model limit is {MAX_INPUT_TOKENS}.&quot;
+        )
+
+    # Move model inputs to the selected device.
+    inputs = {
+        key: value.to(device)
+        for key, value in inputs.items()
+    }
+
+    # Generate deterministically.
+    with torch.no_grad():
+
+        outputs = llm.generate(
+            **inputs,
+            max_new_tokens=max_new_tokens,
+            do_sample=False,
+            pad_token_id=tokenizer.eos_token_id
+        )
+
+    # Causal models return the prompt plus newly generated tokens.
+    generated_tokens = outputs[0][input_length:]
+
+    answer = tokenizer.decode(
+        generated_tokens,
+        skip_special_tokens=True
+    ).strip()
+
+    if not answer:
+        return (
+            &quot;The model generated an empty answer. &quot;
+            &quot;Inspect the prompt and retrieved evidence.&quot;
+        )
+
+    return answer
+
+
+</code></pre></section><section class="cell markdown-cell"><h4>8. Retrieve candidates and rerank them</h4><p>The <code>retrieve_documents_reranked()</code> function combines fast vector search with a more careful relevance check. It first validates the question, requested top count, and candidate-pool size. The pool must be at least as large as <code>top_k</code>, since reranking cannot return more final passages than it receives from FAISS.</p><p>The question is encoded through the same normalized <code>embedding_model</code> used in Component I and converted to <code>float32</code>. FAISS then searches for up to 30 candidates, or fewer when the index contains fewer vectors. This first stage is efficient and broad, but semantic similarity alone may place a related yet inapplicable labor rule near the top.</p><p>For every valid FAISS position, the function recovers the passage through <code>chunk_lookup</code> and records the original similarity score and FAISS rank. It then creates question-passage pairs and sends them to the <code>reranker</code>. The cross-encoder reads both texts together, allowing it to consider conditions such as whether the question refers to a rest day, the first eight hours, or overtime.</p><p>The candidate dictionaries receive their reranker scores and are sorted from highest to lowest. Only the requested top results are returned. Each result still carries its FAISS score and rank, so the notebook can show how the second-stage ordering differs from the initial vector search.</p><p>The diagnostic output lists the candidate-pool size and the final ranked pages and chunks. I use this information to separate retrieval problems from generation problems. If the correct rule never appears among the selected passages, retrieval needs attention. If the correct passage is present but the answer is wrong, the difficulty lies in evidence interpretation or calculation.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 35</p><pre><code># ============================================================
+# 8. DEFINE GENERIC RERANKED RETRIEVAL FUNCTION
+# ============================================================
+
+def retrieve_documents_reranked(
+    query,
+    top_k=3,
+    candidate_pool_size=30
+):
+    &quot;&quot;&quot;Retrieve with FAISS, then rerank with a cross-encoder.&quot;&quot;&quot;
+
+    if not query or not query.strip():
+        raise ValueError(&quot;The retrieval query cannot be empty.&quot;)
+
+    if top_k &lt;= 0:
+        raise ValueError(&quot;top_k must be greater than 0.&quot;)
+
+    if index.ntotal == 0:
+        return []
+
+    query_embedding = embedding_model.encode(
+        [query],
+        convert_to_numpy=True,
+        normalize_embeddings=True
+    ).astype(&quot;float32&quot;)
+
+    candidate_k = min(
+        max(candidate_pool_size, top_k),
+        index.ntotal
+    )
+
+    faiss_scores, faiss_indices = index.search(
+        query_embedding,
+        candidate_k
+    )
+
+    candidates = []
+
+    for faiss_rank, idx in enumerate(faiss_indices[0]):
+
+        if idx == -1:
+            continue
+
+        position = int(idx)
+        chunk = chunk_lookup[position]
+
+        candidates.append({
+            &quot;position&quot;: position,
+            &quot;faiss_rank&quot;: faiss_rank + 1,
+            &quot;faiss_score&quot;: float(faiss_scores[0][faiss_rank]),
+            &quot;chunk&quot;: chunk
+        })
+
+    if not candidates:
+        return []
+
+    query_document_pairs = [
+        [query, candidate[&quot;chunk&quot;][&quot;text&quot;]]
+        for candidate in candidates
+    ]
+
+    reranker_scores = reranker.predict(
+        query_document_pairs,
+        batch_size=16,
+        show_progress_bar=False
+    )
+
+    for candidate, reranker_score in zip(
+        candidates,
+        reranker_scores
+    ):
+        candidate[&quot;reranker_score&quot;] = float(reranker_score)
+
+    candidates.sort(
+        key=lambda candidate: candidate[&quot;reranker_score&quot;],
+        reverse=True
+    )
+
+    selected_candidates = candidates[:top_k]
+
+    print(&quot;\n--- RERANKING DIAGNOSTICS ---&quot;)
+    print(&quot;FAISS candidates:&quot;, len(candidates))
+
+    results = []
+
+    for rank, candidate in enumerate(selected_candidates, start=1):
+
+        chunk = candidate[&quot;chunk&quot;]
+
+        print(
+            f&quot;Rank {rank}: Page {chunk[&#x27;page&#x27;]} | &quot;
+            f&quot;Chunk {chunk[&#x27;chunk_id&#x27;]} | &quot;
+            f&quot;Reranker {candidate[&#x27;reranker_score&#x27;]:.4f} | &quot;
+            f&quot;FAISS rank {candidate[&#x27;faiss_rank&#x27;]}&quot;
+        )
+
+        results.append({
+            &quot;rank&quot;: rank,
+            &quot;chunk_id&quot;: chunk[&quot;chunk_id&quot;],
+            &quot;page&quot;: chunk[&quot;page&quot;],
+            &quot;score&quot;: candidate[&quot;reranker_score&quot;],
+            &quot;faiss_score&quot;: candidate[&quot;faiss_score&quot;],
+            &quot;faiss_rank&quot;: candidate[&quot;faiss_rank&quot;],
+            &quot;text&quot;: chunk[&quot;text&quot;]
+        })
+
+    return results
+
+
+def attach_source_citation(answer, retrieved_documents):
+    &quot;&quot;&quot;Append the page from the highest-ranked source.&quot;&quot;&quot;
+
+    fallback = &quot;I cannot find the answer in the provided document.&quot;
+
+    if not answer or not retrieved_documents:
+        return answer
+
+    if answer.strip() == fallback:
+        return answer.strip()
+
+    cleaned_answer = re.sub(
+        r&quot;\s*\(PDF page\s+\d+\)\.?\s*$&quot;,
+        &quot;&quot;,
+        answer.strip(),
+        flags=re.IGNORECASE
+    ).rstrip(&quot; .&quot;)
+
+    source_page = retrieved_documents[0][&quot;page&quot;]
+
+    return f&quot;{cleaned_answer}. (PDF page {source_page})&quot;
+
+
+</code></pre></section><section class="cell markdown-cell"><h4>9. Connect retrieval, prompting, and generation</h4><p>The <code>rag_query()</code> function joins the major operations into one reusable workflow. It begins by calling <code>retrieve_documents_reranked()</code> with the original English question. No query rewriting is performed, so the retrieval diagnostics reflect the exact wording entered by the user.</p><p>The reranked results are passed to <code>create_rag_prompt()</code>, which selects the passages that fit and returns the formatted Qwen input. <code>generate_answer()</code> then produces the document-grounded response. Keeping these calls in one function reduces repetition in the interactive loop while preserving separate helpers that can still be tested individually.</p><p>After generation, the function obtains the page of the highest-ranked retrieved source and appends it to the answer. It also builds a diagnostics dictionary containing the original question, retrieval query, source count, included count, and prompt token information. These details support later review of the output.</p><p>The function returns four values: the final answer, the retrieved sources, the complete prompt, and the diagnostics. This design allows the user interface to show a concise answer first while still keeping the evidence and prompt available through separate commands.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 36</p><pre><code># ============================================================
+# 9. DEFINE COMPLETE RAG QUERY FUNCTION
+# ============================================================
+
+
+def rag_query(question, top_k=3):
+    &quot;&quot;&quot;
+    General-purpose RAG question-answering function.
+
+    Workflow:
+    1. Retrieve FAISS candidates using the English question.
+    2. Rerank candidates with the cross-encoder.
+    3. Build a prompt using the unchanged question.
+    4. Generate an answer and attach a verified source page.
+    &quot;&quot;&quot;
+
+    # STEP 1: Validate the question.
+    question = question.strip()
+
+    if not question:
+        return (
+            &quot;Please enter a valid question.&quot;,
+            [],
+            &quot;&quot;
+        )
+
+    # STEP 2: Use the original English question for retrieval.
+    retrieval_query = question
+
+    print(&quot;\n--- RETRIEVAL QUERY ---&quot;)
+    print(retrieval_query)
+
+    # STEP 3: Retrieve and rerank relevant document chunks.
+    retrieved_documents = retrieve_documents_reranked(
+        retrieval_query,
+        top_k=top_k
+    )
+
+    # STEP 4: Handle cases where no evidence is retrieved.
+    if not retrieved_documents:
+        return (
+            &quot;I cannot find the answer in the provided document.&quot;,
+            [],
+            &quot;&quot;
+        )
+
+    # STEP 5: Use the original English question in the final prompt.
+    prompt = create_rag_prompt(
+        question,
+        retrieved_documents
+    )
+
+    # STEP 6: Generate an answer from the retrieved evidence.
+    answer = generate_answer(prompt)
+
+    # STEP 7: Handle an empty model response.
+    if not answer or not answer.strip():
+        answer = (
+            &quot;The model could not generate an answer. &quot;
+            &quot;Please review the retrieved evidence.&quot;
+        )
+
+    # STEP 8: Attach the highest-ranked source page.
+    answer = attach_source_citation(
+        answer,
+        retrieved_documents
+    )
+
+    # STEP 9: Return the results.
+    return (
+        answer.strip(),
+        retrieved_documents,
+        prompt
+    )
+
+
+</code></pre></section><section class="cell markdown-cell"><h4>10. Run the interactive question-answering session</h4><p>This section provides the continuous interface used to test the indexed handbook. It introduces the available commands and initializes variables for the most recent answer, sources, prompt, and diagnostics. Keeping the previous result in memory allows the user to inspect it without repeating a model query.</p><p>The <code>while True</code> loop accepts a question through <code>input()</code> and checks command conditions before starting retrieval. Entering <code>exit</code> breaks the loop and ends the session. An empty entry is ignored with a reminder, which prevents unnecessary embedding and model calls.</p><p>The <code>sources</code> command prints the passages returned by the last retrieval, including their reranker scores and FAISS ranks. The <code>prompt</code> command displays the complete model input from the previous question. These views are valuable during evaluation because a correct-looking answer should still be checked against the evidence that produced it.</p><p>For an ordinary question, the loop calls <code>rag_query()</code> inside a <code>try</code> block. The returned values replace the stored previous result, and the notebook prints retrieval details, selected evidence, generation diagnostics, the RAG answer, all retrieved sources, and the prompt sent to Qwen. This output is intentionally detailed because the activity examines both retrieval and answer generation.</p><p>If an exception occurs, the cell prints the error and explains that the question could not be processed instead of terminating the entire notebook. The user can then enter another question or inspect the setup. Exiting this loop does not cancel the Excel download started in Component I because that browser-side action was created earlier and operates separately.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 37</p><pre><code># ============================================================
+# 10. CONTINUOUS QUESTION-ANSWER LOOP
+# ============================================================
+
+print(&quot;\n&quot;)
+print(&quot;=&quot; * 70)
+print(&quot;CONTINUOUS RAG QUESTION ANSWERING&quot;)
+print(&quot;=&quot; * 70)
+
+print(&quot;Ask English questions about the indexed document.&quot;)
+print(&quot;Type &#x27;exit&#x27; to terminate.&quot;)
+print(&quot;Type &#x27;sources&#x27; to display sources from the last query.&quot;)
+print(&quot;Type &#x27;prompt&#x27; to display the last generated prompt.&quot;)
+
+
+# Store the most recent query results.
+last_answer = None
+last_sources = []
+last_prompt = None
+
+
+while True:
+
+    print(&quot;\n&quot;)
+
+    user_question = input(
+        &quot;Question: &quot;
+    ).strip()
+
+    # --------------------------------------------------------
+    # EXIT CONDITION
+    # --------------------------------------------------------
+
+    if user_question.lower() == &quot;exit&quot;:
+
+        print(&quot;\nRAG session terminated.&quot;)
+        break
+
+    # --------------------------------------------------------
+    # IGNORE EMPTY QUESTIONS
+    # --------------------------------------------------------
+
+    if not user_question:
+
+        print(&quot;Please enter a question.&quot;)
+        continue
+
+    # --------------------------------------------------------
+    # SPECIAL COMMAND: SOURCES
+    # --------------------------------------------------------
+
+    if user_question.lower() == &quot;sources&quot;:
+
+        if not last_sources:
+            print(&quot;No previous query sources are available.&quot;)
+            continue
+
+        print(&quot;\n&quot; + &quot;=&quot; * 70)
+        print(&quot;SOURCES FROM LAST QUERY&quot;)
+        print(&quot;=&quot; * 70)
+
+        for result in last_sources:
+
+            print(
+                f&quot;\nRank {result[&#x27;rank&#x27;]} | &quot;
+                f&quot;Page {result[&#x27;page&#x27;]} | &quot;
+                f&quot;Chunk {result[&#x27;chunk_id&#x27;]} | &quot;
+                f&quot;Reranker {result[&#x27;score&#x27;]:.4f} | &quot;
+                f&quot;FAISS rank {result[&#x27;faiss_rank&#x27;]}&quot;
+            )
+
+            print(&quot;-&quot; * 70)
+            print(result[&quot;text&quot;])
+
+        continue
+
+    # --------------------------------------------------------
+    # SPECIAL COMMAND: PROMPT
+    # --------------------------------------------------------
+
+    if user_question.lower() == &quot;prompt&quot;:
+
+        if last_prompt is None:
+            print(&quot;No previous query prompt is available.&quot;)
+            continue
+
+        print(&quot;\n&quot; + &quot;=&quot; * 70)
+        print(&quot;LAST RAG PROMPT&quot;)
+        print(&quot;=&quot; * 70)
+
+        print(last_prompt)
+
+        continue
+
+    # --------------------------------------------------------
+    # PROCESS QUESTION
+    # --------------------------------------------------------
+
+    try:
+
+        answer, retrieved_documents, prompt = rag_query(
+            user_question,
+            top_k=TOP_K
+        )
+
+        last_answer = answer
+        last_sources = retrieved_documents
+        last_prompt = prompt
+
+        # ----------------------------------------------------
+        # DISPLAY ANSWER
+        # ----------------------------------------------------
+
+        print(&quot;\n&quot;)
+        print(&quot;=&quot; * 70)
+        print(&quot;RAG ANSWER&quot;)
+        print(&quot;=&quot; * 70)
+
+        print(answer)
+
+        # ----------------------------------------------------
+        # DISPLAY RETRIEVED SOURCES
+        # ----------------------------------------------------
+
+        print(&quot;\n&quot;)
+        print(&quot;=&quot; * 70)
+        print(&quot;RETRIEVED SOURCES&quot;)
+        print(&quot;=&quot; * 70)
+
+        for result in retrieved_documents:
+
+            print(
+                f&quot;\n[{result[&#x27;rank&#x27;]}] &quot;
+                f&quot;Page {result[&#x27;page&#x27;]} &quot;
+                f&quot;| Chunk {result[&#x27;chunk_id&#x27;]} &quot;
+                f&quot;| Reranker {result[&#x27;score&#x27;]:.4f} &quot;
+                f&quot;| FAISS rank {result[&#x27;faiss_rank&#x27;]}&quot;
+            )
+
+            print(&quot;-&quot; * 70)
+            print(result[&quot;text&quot;])
+
+        # ----------------------------------------------------
+        # DISPLAY PROMPT
+        # ----------------------------------------------------
+
+        print(&quot;\n&quot;)
+        print(&quot;=&quot; * 70)
+        print(&quot;RAG PROMPT SENT TO LLM&quot;)
+        print(&quot;=&quot; * 70)
+
+        print(prompt)
+
+    except Exception as e:
+
+        print(&quot;\nERROR:&quot;)
+        print(str(e))
+
+        print(&quot;\nThe question could not be processed.&quot;)
+
+
+</code></pre><div class="outputs"><pre class="output">
+
+======================================================================
+CONTINUOUS RAG QUESTION ANSWERING
+======================================================================
+Ask English questions about the indexed document.
+Type &#x27;exit&#x27; to terminate.
+Type &#x27;sources&#x27; to display sources from the last query.
+Type &#x27;prompt&#x27; to display the last generated prompt.
+
+
+Question: What is the total pay rate for work done during a regular holiday for the first eight hours?
+
+--- RETRIEVAL QUERY ---
+What is the total pay rate for work done during a regular holiday for the first eight hours?
+
+--- RERANKING DIAGNOSTICS ---
+FAISS candidates: 30
+Rank 1: Page 28 | Chunk 77 | Reranker 7.7176 | FAISS rank 2
+Rank 2: Page 32 | Chunk 89 | Reranker 7.3599 | FAISS rank 3
+Rank 3: Page 33 | Chunk 91 | Reranker 5.2962 | FAISS rank 1
+
+--- PROMPT DIAGNOSTICS ---
+Original question: What is the total pay rate for work done during a regular holiday for the first eight hours?
+Retrieved chunks: 3
+Chunks included: 3
+Final prompt tokens: 899
+Input token limit: 4096
+
+--- SELECTED EVIDENCE ---
+
+Evidence 1:
+[Page 28, Chunk 77]
+18 provision in the Collective Bargaining Agreement (CBA) providing for payment of wages and other benefits for days declared as special days even if unworked. The minimum statutory holiday pay rates are as follows: 1. If the employee does not work , the employer shall pay 100% of the employee&#x27;s wage for that day. (basic wage x 100%) 2. For work done during the regular holiday , the employer shall pay a total of 200% of the employee&#x27;s wage for that day for the first eight hours. (basic wage x 200%) 3. If the employee does not work on a double regular holiday, the employer shall pay 200% of the employee’s wage for that day. (basic wage x 200%) 4. For work done during a double regular holiday, the employer shall pay a total of 200% of the employee&#x27;s wage for that day for the first eight hours. (basic wage x 300%) E. Absences 1. All covered employees shall be entitled to holiday pay when they are on leave of absence with pay on the workday immediately preceding the regular holiday. Employ
+
+Evidence 2:
+[Page 32, Chunk 89]
+king) day that also falls on the employee’s rest day, the employer shall p ay the employee an additional 50% of the basic wage on the first eight hours of work. (basic wage x 150%) 4. For work done during a regular holiday that also falls on the employee’s rest day, the employer shall pay the employee an additional 30% of the basic wage on the basic wage of 200%. (basic wage x 200% x 130%)
+
+Evidence 3:
+[Page 33, Chunk 91]
+s of eight hours on a special (non-working) day that also falls on the employee’s rest day, the employer shall pay the employee an additional 30% of the hourly rate on said day. (hourly rate of the basic wage x 150% 130% x number of overtime work hours) 4. For work done in excess of eight hours on a regular holiday, the employer shall pay the employee an additional 30% of the hourly rate on said day. (hourly rate of the basic wage x 200% 130% x number of overtime work hours) 5. For work done in excess of eight hours on a regular holiday that also falls on the employee’s rest day, the employer shall pay the employee an additional 30% of the hourly rate on said day. (hourly rate of the basic wage x 200% 130% x 130% x number of overtime work hours) D. Stipulated Overtime Rates Generally, the premium pay for work performed on rest days, special days, or regular holidays is included as part of the regular rate of the employee in the computation of overtime pay for overtime work rendered on
+
+--- GENERATION DIAGNOSTICS ---
+Actual input tokens: 899
+Maximum input tokens: 4096
+
+
+======================================================================
+RAG ANSWER
+======================================================================
+The total pay rate for work done during a regular holiday for the first eight hours is 200% of the employee&#x27;s basic wage. (PDF page 28)
+
+
+======================================================================
+RETRIEVED SOURCES
+======================================================================
+
+[1] Page 28 | Chunk 77 | Reranker 7.7176 | FAISS rank 2
+----------------------------------------------------------------------
+18 provision in the Collective Bargaining Agreement (CBA) providing for payment of wages and other benefits for days declared as special days even if unworked. The minimum statutory holiday pay rates are as follows: 1. If the employee does not work , the employer shall pay 100% of the employee&#x27;s wage for that day. (basic wage x 100%) 2. For work done during the regular holiday , the employer shall pay a total of 200% of the employee&#x27;s wage for that day for the first eight hours. (basic wage x 200%) 3. If the employee does not work on a double regular holiday, the employer shall pay 200% of the employee’s wage for that day. (basic wage x 200%) 4. For work done during a double regular holiday, the employer shall pay a total of 200% of the employee&#x27;s wage for that day for the first eight hours. (basic wage x 300%) E. Absences 1. All covered employees shall be entitled to holiday pay when they are on leave of absence with pay on the workday immediately preceding the regular holiday. Employ
+
+[2] Page 32 | Chunk 89 | Reranker 7.3599 | FAISS rank 3
+----------------------------------------------------------------------
+king) day that also falls on the employee’s rest day, the employer shall p ay the employee an additional 50% of the basic wage on the first eight hours of work. (basic wage x 150%) 4. For work done during a regular holiday that also falls on the employee’s rest day, the employer shall pay the employee an additional 30% of the basic wage on the basic wage of 200%. (basic wage x 200% x 130%)
+
+[3] Page 33 | Chunk 91 | Reranker 5.2962 | FAISS rank 1
+----------------------------------------------------------------------
+s of eight hours on a special (non-working) day that also falls on the employee’s rest day, the employer shall pay the employee an additional 30% of the hourly rate on said day. (hourly rate of the basic wage x 150% 130% x number of overtime work hours) 4. For work done in excess of eight hours on a regular holiday, the employer shall pay the employee an additional 30% of the hourly rate on said day. (hourly rate of the basic wage x 200% 130% x number of overtime work hours) 5. For work done in excess of eight hours on a regular holiday that also falls on the employee’s rest day, the employer shall pay the employee an additional 30% of the hourly rate on said day. (hourly rate of the basic wage x 200% 130% x 130% x number of overtime work hours) D. Stipulated Overtime Rates Generally, the premium pay for work performed on rest days, special days, or regular holidays is included as part of the regular rate of the employee in the computation of overtime pay for overtime work rendered on
+
+
+======================================================================
+RAG PROMPT SENT TO LLM
+======================================================================
+&lt;|im_start|&gt;system
+You are a document-grounded Philippine labor-benefits information assistant for workers. Answer concisely in English using only the supplied handbook evidence. Do not guess, combine unrelated rules, or use information outside the provided evidence.&lt;|im_end|&gt;
+&lt;|im_start|&gt;user
+Question: What is the total pay rate for work done during a regular holiday for the first eight hours?
+
+Answer the worker&#x27;s question using only the supplied handbook evidence. Identify the exact labor benefit and the conditions that apply to the worker&#x27;s situation. Clearly distinguish a total pay rate from an additional premium. Give the exact amount, percentage, or formula only when it is directly supported by the evidence. Do not combine rules for different worker categories, benefits, regular holidays, special days, rest days, ordinary working hours, or overtime. If the retrieved evidence describes a different situation from the question, do not use that rule. Answer directly and concisely in English. Do not include a PDF page citation because the application adds the page number from the highest-ranked source. Do not guess or use outside knowledge. If the evidence does not directly support an answer, respond exactly: &#x27;I cannot find the answer in the provided document.&#x27;
+
+Evidence:
+[Page 28, Chunk 77]
+18 provision in the Collective Bargaining Agreement (CBA) providing for payment of wages and other benefits for days declared as special days even if unworked. The minimum statutory holiday pay rates are as follows: 1. If the employee does not work , the employer shall pay 100% of the employee&#x27;s wage for that day. (basic wage x 100%) 2. For work done during the regular holiday , the employer shall pay a total of 200% of the employee&#x27;s wage for that day for the first eight hours. (basic wage x 200%) 3. If the employee does not work on a double regular holiday, the employer shall pay 200% of the employee’s wage for that day. (basic wage x 200%) 4. For work done during a double regular holiday, the employer shall pay a total of 200% of the employee&#x27;s wage for that day for the first eight hours. (basic wage x 300%) E. Absences 1. All covered employees shall be entitled to holiday pay when they are on leave of absence with pay on the workday immediately preceding the regular holiday. Employ
+
+[Page 32, Chunk 89]
+king) day that also falls on the employee’s rest day, the employer shall p ay the employee an additional 50% of the basic wage on the first eight hours of work. (basic wage x 150%) 4. For work done during a regular holiday that also falls on the employee’s rest day, the employer shall pay the employee an additional 30% of the basic wage on the basic wage of 200%. (basic wage x 200% x 130%)
+
+[Page 33, Chunk 91]
+s of eight hours on a special (non-working) day that also falls on the employee’s rest day, the employer shall pay the employee an additional 30% of the hourly rate on said day. (hourly rate of the basic wage x 150% 130% x number of overtime work hours) 4. For work done in excess of eight hours on a regular holiday, the employer shall pay the employee an additional 30% of the hourly rate on said day. (hourly rate of the basic wage x 200% 130% x number of overtime work hours) 5. For work done in excess of eight hours on a regular holiday that also falls on the employee’s rest day, the employer shall pay the employee an additional 30% of the hourly rate on said day. (hourly rate of the basic wage x 200% 130% x 130% x number of overtime work hours) D. Stipulated Overtime Rates Generally, the premium pay for work performed on rest days, special days, or regular holidays is included as part of the regular rate of the employee in the computation of overtime pay for overtime work rendered on
+
+Answer:&lt;|im_end|&gt;
+&lt;|im_start|&gt;assistant
+&lt;think&gt;
+
+&lt;/think&gt;
+
+
+
+
+Question: Under the Premium Pay Rates section, what additional compensation and total pay percentage apply to the first eight hours of work on a special non-working day that falls on the employee’s scheduled rest day?
+
+--- RETRIEVAL QUERY ---
+Under the Premium Pay Rates section, what additional compensation and total pay percentage apply to the first eight hours of work on a special non-working day that falls on the employee’s scheduled rest day?
+
+--- RERANKING DIAGNOSTICS ---
+FAISS candidates: 30
+Rank 1: Page 32 | Chunk 88 | Reranker 6.8351 | FAISS rank 1
+Rank 2: Page 30 | Chunk 82 | Reranker 3.4659 | FAISS rank 7
+Rank 3: Page 33 | Chunk 90 | Reranker 3.1995 | FAISS rank 6
+
+--- PROMPT DIAGNOSTICS ---
+Original question: Under the Premium Pay Rates section, what additional compensation and total pay percentage apply to the first eight hours of work on a special non-working day that falls on the employee’s scheduled rest day?
+Retrieved chunks: 3
+Chunks included: 3
+Final prompt tokens: 1014
+Input token limit: 4096
+
+--- SELECTED EVIDENCE ---
+
+Evidence 1:
+[Page 32, Chunk 88]
+22 unworked. On the other hand, work performed on special (non-working) days merits additional compensation of at least 30% of the basic wage or a total of 130%. Where the employee works on a special (non-working) day falling on his rest day, he/she shall be entitled to an additional compensation of 50% of his/her basic wage or a total of 150%. The minimum statutory premium pay rates are as follows: 1. If the employee does not work, the “no work, no pay” principle shall apply unless there is a favorable company policy, practice, or CBA granting payment on a special day. 2. For work done during a special (non -working) day, the employer shall pay the employee an additional 30% of the basic wage on the first eight hours of work. (basic wage x 130%) 3. For work done during a special (non -working) day that also falls on the employee’s rest day, the employer shall p ay the employee an additional 50% of the basic wage on the first eight hours of work. (basic wage x 150%) 4. For work done du
+
+Evidence 2:
+[Page 30, Chunk 82]
+20 3 PREMIUM PAY (Articles 91-93) A. Definition Premium pay refers to the additional compensation for work performed within eight hours on rest days and special days. B. Coverage This benefit applies to all employees except: 1. Government employees, whether employed by the National Government or any of its political subdivisions, including those employed in government-owned and/or controlled corporations with original charters or created under special laws; 2. Managerial employees, if they meet all of the following conditions: 2.1 Their primary duty is to manage the establishment in which they are employed or of a department or subdivision thereof; 2.2 They customarily and regularly direct the work of two or more employees therein; and 2.3 They have the authority to hire or fire other employees of lower rank; or their suggestions and recommendations as to hiring, firing, and promotion, or any other change of status of other employees are given particular weight. 3. Officers or members
+
+Evidence 3:
+[Page 33, Chunk 90]
+23 4 OVERTIME PAY (Article 87) A. Definition Overtime pay refers to the additional compensation for work performed beyond eight hours a day. B. Coverage Same as those covered under 3. Premium Pay. C. Overtime Pay Rates The minimum overtime pay rates vary according to the day the overtime work is performed, as follows: 1. For work done in excess of eight hours on an ordinary work ing day, the employer shall pay the employee an additional 25% of the hourly rate on said day. (hourly rate of the basic wage x 125%) 2. For work done in excess of eight hours on a special (non-working) day or scheduled rest day , the employer shall pay the employee an additional 30% of the hourly rate on said day. (hourly rate of the basic wage x 130% 130% x number of overtime work hours) 3. For work done in excess of eight hours on a special (non-working) day that also falls on the employee’s rest day, the employer shall pay the employee an additional 30% of the hourly rate on said day. (hourly rate of the ba
+
+--- GENERATION DIAGNOSTICS ---
+Actual input tokens: 1014
+Maximum input tokens: 4096
+
+
+======================================================================
+RAG ANSWER
+======================================================================
+The additional compensation for the first eight hours of work on a special non-working day that falls on the employee’s scheduled rest day is 50% of the basic wage, resulting in a total pay rate of 150% of the basic wage. (PDF page 32)
+
+
+======================================================================
+RETRIEVED SOURCES
+======================================================================
+
+[1] Page 32 | Chunk 88 | Reranker 6.8351 | FAISS rank 1
+----------------------------------------------------------------------
+22 unworked. On the other hand, work performed on special (non-working) days merits additional compensation of at least 30% of the basic wage or a total of 130%. Where the employee works on a special (non-working) day falling on his rest day, he/she shall be entitled to an additional compensation of 50% of his/her basic wage or a total of 150%. The minimum statutory premium pay rates are as follows: 1. If the employee does not work, the “no work, no pay” principle shall apply unless there is a favorable company policy, practice, or CBA granting payment on a special day. 2. For work done during a special (non -working) day, the employer shall pay the employee an additional 30% of the basic wage on the first eight hours of work. (basic wage x 130%) 3. For work done during a special (non -working) day that also falls on the employee’s rest day, the employer shall p ay the employee an additional 50% of the basic wage on the first eight hours of work. (basic wage x 150%) 4. For work done du
+
+[2] Page 30 | Chunk 82 | Reranker 3.4659 | FAISS rank 7
+----------------------------------------------------------------------
+20 3 PREMIUM PAY (Articles 91-93) A. Definition Premium pay refers to the additional compensation for work performed within eight hours on rest days and special days. B. Coverage This benefit applies to all employees except: 1. Government employees, whether employed by the National Government or any of its political subdivisions, including those employed in government-owned and/or controlled corporations with original charters or created under special laws; 2. Managerial employees, if they meet all of the following conditions: 2.1 Their primary duty is to manage the establishment in which they are employed or of a department or subdivision thereof; 2.2 They customarily and regularly direct the work of two or more employees therein; and 2.3 They have the authority to hire or fire other employees of lower rank; or their suggestions and recommendations as to hiring, firing, and promotion, or any other change of status of other employees are given particular weight. 3. Officers or members
+
+[3] Page 33 | Chunk 90 | Reranker 3.1995 | FAISS rank 6
+----------------------------------------------------------------------
+23 4 OVERTIME PAY (Article 87) A. Definition Overtime pay refers to the additional compensation for work performed beyond eight hours a day. B. Coverage Same as those covered under 3. Premium Pay. C. Overtime Pay Rates The minimum overtime pay rates vary according to the day the overtime work is performed, as follows: 1. For work done in excess of eight hours on an ordinary work ing day, the employer shall pay the employee an additional 25% of the hourly rate on said day. (hourly rate of the basic wage x 125%) 2. For work done in excess of eight hours on a special (non-working) day or scheduled rest day , the employer shall pay the employee an additional 30% of the hourly rate on said day. (hourly rate of the basic wage x 130% 130% x number of overtime work hours) 3. For work done in excess of eight hours on a special (non-working) day that also falls on the employee’s rest day, the employer shall pay the employee an additional 30% of the hourly rate on said day. (hourly rate of the ba
+
+
+======================================================================
+RAG PROMPT SENT TO LLM
+======================================================================
+&lt;|im_start|&gt;system
+You are a document-grounded Philippine labor-benefits information assistant for workers. Answer concisely in English using only the supplied handbook evidence. Do not guess, combine unrelated rules, or use information outside the provided evidence.&lt;|im_end|&gt;
+&lt;|im_start|&gt;user
+Question: Under the Premium Pay Rates section, what additional compensation and total pay percentage apply to the first eight hours of work on a special non-working day that falls on the employee’s scheduled rest day?
+
+Answer the worker&#x27;s question using only the supplied handbook evidence. Identify the exact labor benefit and the conditions that apply to the worker&#x27;s situation. Clearly distinguish a total pay rate from an additional premium. Give the exact amount, percentage, or formula only when it is directly supported by the evidence. Do not combine rules for different worker categories, benefits, regular holidays, special days, rest days, ordinary working hours, or overtime. If the retrieved evidence describes a different situation from the question, do not use that rule. Answer directly and concisely in English. Do not include a PDF page citation because the application adds the page number from the highest-ranked source. Do not guess or use outside knowledge. If the evidence does not directly support an answer, respond exactly: &#x27;I cannot find the answer in the provided document.&#x27;
+
+Evidence:
+[Page 32, Chunk 88]
+22 unworked. On the other hand, work performed on special (non-working) days merits additional compensation of at least 30% of the basic wage or a total of 130%. Where the employee works on a special (non-working) day falling on his rest day, he/she shall be entitled to an additional compensation of 50% of his/her basic wage or a total of 150%. The minimum statutory premium pay rates are as follows: 1. If the employee does not work, the “no work, no pay” principle shall apply unless there is a favorable company policy, practice, or CBA granting payment on a special day. 2. For work done during a special (non -working) day, the employer shall pay the employee an additional 30% of the basic wage on the first eight hours of work. (basic wage x 130%) 3. For work done during a special (non -working) day that also falls on the employee’s rest day, the employer shall p ay the employee an additional 50% of the basic wage on the first eight hours of work. (basic wage x 150%) 4. For work done du
+
+[Page 30, Chunk 82]
+20 3 PREMIUM PAY (Articles 91-93) A. Definition Premium pay refers to the additional compensation for work performed within eight hours on rest days and special days. B. Coverage This benefit applies to all employees except: 1. Government employees, whether employed by the National Government or any of its political subdivisions, including those employed in government-owned and/or controlled corporations with original charters or created under special laws; 2. Managerial employees, if they meet all of the following conditions: 2.1 Their primary duty is to manage the establishment in which they are employed or of a department or subdivision thereof; 2.2 They customarily and regularly direct the work of two or more employees therein; and 2.3 They have the authority to hire or fire other employees of lower rank; or their suggestions and recommendations as to hiring, firing, and promotion, or any other change of status of other employees are given particular weight. 3. Officers or members
+
+[Page 33, Chunk 90]
+23 4 OVERTIME PAY (Article 87) A. Definition Overtime pay refers to the additional compensation for work performed beyond eight hours a day. B. Coverage Same as those covered under 3. Premium Pay. C. Overtime Pay Rates The minimum overtime pay rates vary according to the day the overtime work is performed, as follows: 1. For work done in excess of eight hours on an ordinary work ing day, the employer shall pay the employee an additional 25% of the hourly rate on said day. (hourly rate of the basic wage x 125%) 2. For work done in excess of eight hours on a special (non-working) day or scheduled rest day , the employer shall pay the employee an additional 30% of the hourly rate on said day. (hourly rate of the basic wage x 130% 130% x number of overtime work hours) 3. For work done in excess of eight hours on a special (non-working) day that also falls on the employee’s rest day, the employer shall pay the employee an additional 30% of the hourly rate on said day. (hourly rate of the ba
+
+Answer:&lt;|im_end|&gt;
+&lt;|im_start|&gt;assistant
+&lt;think&gt;
+
+&lt;/think&gt;
+
+
+
+
+Question: An employee worked for 10 hours on a regular holiday that also fell on the employee’s scheduled rest day. Under the Premium Pay and Overtime Pay sections, what pay rate applies to the first eight hours, what rate applies to the two overtime hours, and what is the total pay as a percentage of the basic daily wage? Assume the basic daily wage covers eight hours.
+
+--- RETRIEVAL QUERY ---
+An employee worked for 10 hours on a regular holiday that also fell on the employee’s scheduled rest day. Under the Premium Pay and Overtime Pay sections, what pay rate applies to the first eight hours, what rate applies to the two overtime hours, and what is the total pay as a percentage of the basic daily wage? Assume the basic daily wage covers eight hours.
+
+--- RERANKING DIAGNOSTICS ---
+FAISS candidates: 30
+Rank 1: Page 33 | Chunk 91 | Reranker 4.5740 | FAISS rank 1
+Rank 2: Page 32 | Chunk 89 | Reranker 3.3318 | FAISS rank 2
+Rank 3: Page 33 | Chunk 92 | Reranker 1.9834 | FAISS rank 3
+
+--- PROMPT DIAGNOSTICS ---
+Original question: An employee worked for 10 hours on a regular holiday that also fell on the employee’s scheduled rest day. Under the Premium Pay and Overtime Pay sections, what pay rate applies to the first eight hours, what rate applies to the two overtime hours, and what is the total pay as a percentage of the basic daily wage? Assume the basic daily wage covers eight hours.
+Retrieved chunks: 3
+Chunks included: 3
+Final prompt tokens: 759
+Input token limit: 4096
+
+--- SELECTED EVIDENCE ---
+
+Evidence 1:
+[Page 33, Chunk 91]
+s of eight hours on a special (non-working) day that also falls on the employee’s rest day, the employer shall pay the employee an additional 30% of the hourly rate on said day. (hourly rate of the basic wage x 150% 130% x number of overtime work hours) 4. For work done in excess of eight hours on a regular holiday, the employer shall pay the employee an additional 30% of the hourly rate on said day. (hourly rate of the basic wage x 200% 130% x number of overtime work hours) 5. For work done in excess of eight hours on a regular holiday that also falls on the employee’s rest day, the employer shall pay the employee an additional 30% of the hourly rate on said day. (hourly rate of the basic wage x 200% 130% x 130% x number of overtime work hours) D. Stipulated Overtime Rates Generally, the premium pay for work performed on rest days, special days, or regular holidays is included as part of the regular rate of the employee in the computation of overtime pay for overtime work rendered on
+
+Evidence 2:
+[Page 32, Chunk 89]
+king) day that also falls on the employee’s rest day, the employer shall p ay the employee an additional 50% of the basic wage on the first eight hours of work. (basic wage x 150%) 4. For work done during a regular holiday that also falls on the employee’s rest day, the employer shall pay the employee an additional 30% of the basic wage on the basic wage of 200%. (basic wage x 200% x 130%)
+
+Evidence 3:
+[Page 33, Chunk 92]
+premium pay for work performed on rest days, special days, or regular holidays is included as part of the regular rate of the employee in the computation of overtime pay for overtime work rendered on said days, especially if the employer pays only the minimum overtime rates prescribed by law.
+
+--- GENERATION DIAGNOSTICS ---
+Actual input tokens: 759
+Maximum input tokens: 4096
+
+
+======================================================================
+RAG ANSWER
+======================================================================
+The first eight hours of work on a regular holiday that also falls on the employee’s scheduled rest day are paid at 150% of the basic daily wage. The two overtime hours are paid at 200% of the basic daily wage. The total pay rate is 200% of the basic daily wage. (PDF page 33)
+
+
+======================================================================
+RETRIEVED SOURCES
+======================================================================
+
+[1] Page 33 | Chunk 91 | Reranker 4.5740 | FAISS rank 1
+----------------------------------------------------------------------
+s of eight hours on a special (non-working) day that also falls on the employee’s rest day, the employer shall pay the employee an additional 30% of the hourly rate on said day. (hourly rate of the basic wage x 150% 130% x number of overtime work hours) 4. For work done in excess of eight hours on a regular holiday, the employer shall pay the employee an additional 30% of the hourly rate on said day. (hourly rate of the basic wage x 200% 130% x number of overtime work hours) 5. For work done in excess of eight hours on a regular holiday that also falls on the employee’s rest day, the employer shall pay the employee an additional 30% of the hourly rate on said day. (hourly rate of the basic wage x 200% 130% x 130% x number of overtime work hours) D. Stipulated Overtime Rates Generally, the premium pay for work performed on rest days, special days, or regular holidays is included as part of the regular rate of the employee in the computation of overtime pay for overtime work rendered on
+
+[2] Page 32 | Chunk 89 | Reranker 3.3318 | FAISS rank 2
+----------------------------------------------------------------------
+king) day that also falls on the employee’s rest day, the employer shall p ay the employee an additional 50% of the basic wage on the first eight hours of work. (basic wage x 150%) 4. For work done during a regular holiday that also falls on the employee’s rest day, the employer shall pay the employee an additional 30% of the basic wage on the basic wage of 200%. (basic wage x 200% x 130%)
+
+[3] Page 33 | Chunk 92 | Reranker 1.9834 | FAISS rank 3
+----------------------------------------------------------------------
+premium pay for work performed on rest days, special days, or regular holidays is included as part of the regular rate of the employee in the computation of overtime pay for overtime work rendered on said days, especially if the employer pays only the minimum overtime rates prescribed by law.
+
+
+======================================================================
+RAG PROMPT SENT TO LLM
+======================================================================
+&lt;|im_start|&gt;system
+You are a document-grounded Philippine labor-benefits information assistant for workers. Answer concisely in English using only the supplied handbook evidence. Do not guess, combine unrelated rules, or use information outside the provided evidence.&lt;|im_end|&gt;
+&lt;|im_start|&gt;user
+Question: An employee worked for 10 hours on a regular holiday that also fell on the employee’s scheduled rest day. Under the Premium Pay and Overtime Pay sections, what pay rate applies to the first eight hours, what rate applies to the two overtime hours, and what is the total pay as a percentage of the basic daily wage? Assume the basic daily wage covers eight hours.
+
+Answer the worker&#x27;s question using only the supplied handbook evidence. Identify the exact labor benefit and the conditions that apply to the worker&#x27;s situation. Clearly distinguish a total pay rate from an additional premium. Give the exact amount, percentage, or formula only when it is directly supported by the evidence. Do not combine rules for different worker categories, benefits, regular holidays, special days, rest days, ordinary working hours, or overtime. If the retrieved evidence describes a different situation from the question, do not use that rule. Answer directly and concisely in English. Do not include a PDF page citation because the application adds the page number from the highest-ranked source. Do not guess or use outside knowledge. If the evidence does not directly support an answer, respond exactly: &#x27;I cannot find the answer in the provided document.&#x27;
+
+Evidence:
+[Page 33, Chunk 91]
+s of eight hours on a special (non-working) day that also falls on the employee’s rest day, the employer shall pay the employee an additional 30% of the hourly rate on said day. (hourly rate of the basic wage x 150% 130% x number of overtime work hours) 4. For work done in excess of eight hours on a regular holiday, the employer shall pay the employee an additional 30% of the hourly rate on said day. (hourly rate of the basic wage x 200% 130% x number of overtime work hours) 5. For work done in excess of eight hours on a regular holiday that also falls on the employee’s rest day, the employer shall pay the employee an additional 30% of the hourly rate on said day. (hourly rate of the basic wage x 200% 130% x 130% x number of overtime work hours) D. Stipulated Overtime Rates Generally, the premium pay for work performed on rest days, special days, or regular holidays is included as part of the regular rate of the employee in the computation of overtime pay for overtime work rendered on
+
+[Page 32, Chunk 89]
+king) day that also falls on the employee’s rest day, the employer shall p ay the employee an additional 50% of the basic wage on the first eight hours of work. (basic wage x 150%) 4. For work done during a regular holiday that also falls on the employee’s rest day, the employer shall pay the employee an additional 30% of the basic wage on the basic wage of 200%. (basic wage x 200% x 130%)
+
+[Page 33, Chunk 92]
+premium pay for work performed on rest days, special days, or regular holidays is included as part of the regular rate of the employee in the computation of overtime pay for overtime work rendered on said days, especially if the employer pays only the minimum overtime rates prescribed by law.
+
+Answer:&lt;|im_end|&gt;
+&lt;|im_start|&gt;assistant
+&lt;think&gt;
+
+&lt;/think&gt;
+
+
+
+
+Question: exit
+
+RAG session terminated.
+</pre></div></section><section class="cell markdown-cell"><h4>11. Mark the end of the program</h4><p>After <code>exit</code> breaks the interactive loop, this final cell prints a clear completion banner. It does not delete the index, unload the models, or change the saved files. Its purpose is simply to show that the session reached a normal ending rather than stopping because of an error.</p><p>Separating this message from the loop also makes the final control flow easy to follow. Once the loop finishes, execution moves here and the notebook visibly confirms that the RAG program has ended.</p></section><section class="cell code-cell"><p class="cell-label">Code cell 38</p><pre><code># ============================================================
+# 11. END
+# ============================================================
+
+print(&quot;\n&quot;)
+print(&quot;=&quot; * 70)
+print(&quot;RAG PROGRAM FINISHED&quot;)
+print(&quot;=&quot; * 70)
+</code></pre><div class="outputs"><pre class="output">
+
+======================================================================
+RAG PROGRAM FINISHED
+======================================================================
+</pre></div></section></main>
+  </body>
+</html>

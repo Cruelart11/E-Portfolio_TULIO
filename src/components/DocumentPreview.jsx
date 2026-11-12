@@ -10,6 +10,8 @@ function DocumentPreview({
   externalLabel,
   downloadFile = false,
   isSpreadsheet = false,
+  previewLabel = 'Open full preview',
+  showFileAction = true,
 }) {
   const basePath = import.meta.env.BASE_URL
   const previewUrl = `${basePath}${previewPath}`
@@ -32,21 +34,23 @@ function DocumentPreview({
 
       <div className="document-actions">
         <a href={previewUrl} target="_blank" rel="noreferrer">
-          Open full preview <span aria-hidden="true">↗</span>
+          {previewLabel} <span aria-hidden="true">↗</span>
         </a>
         {externalUrl && (
           <a href={externalUrl} target="_blank" rel="noreferrer">
             {externalLabel} <span aria-hidden="true">↗</span>
           </a>
         )}
-        <a
-          href={fileUrl}
-          target="_blank"
-          rel="noreferrer"
-          download={isSpreadsheet || downloadFile || undefined}
-        >
-          {fileLabel} <span aria-hidden="true">{isSpreadsheet ? '↓' : '↗'}</span>
-        </a>
+        {showFileAction && (
+          <a
+            href={fileUrl}
+            target="_blank"
+            rel="noreferrer"
+            download={isSpreadsheet || downloadFile || undefined}
+          >
+            {fileLabel} <span aria-hidden="true">{isSpreadsheet ? '↓' : '↗'}</span>
+          </a>
+        )}
       </div>
     </article>
   )

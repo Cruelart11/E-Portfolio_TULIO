@@ -1,9 +1,10 @@
 import { routes } from '../routes.js'
 
-const navItems = [
-  ...Object.entries(routes).map(([page, route]) => ({ ...route, page, href: route.hash })),
-  { label: 'Finals', disabled: true },
-]
+const navItems = Object.entries(routes).map(([page, route]) => ({
+  ...route,
+  page,
+  href: route.hash,
+}))
 
 function Header({ currentPage }) {
   return (
@@ -20,20 +21,14 @@ function Header({ currentPage }) {
           <ul className="nav-list">
             {navItems.map((item) => (
               <li key={item.label}>
-                {item.disabled ? (
-                  <span className="nav-link is-disabled" aria-disabled="true" title="Coming soon">
-                    {item.label}
-                  </span>
-                ) : (
-                  <a
-                    className={`nav-link${currentPage === item.page ? ' is-active' : ''}`}
-                    href={item.href}
-                    aria-current={currentPage === item.page ? 'page' : undefined}
-                  >
-                    {currentPage === item.page && <span className="nav-caret" aria-hidden="true">▍</span>}
-                    {item.label}
-                  </a>
-                )}
+                <a
+                  className={`nav-link${currentPage === item.page ? ' is-active' : ''}`}
+                  href={item.href}
+                  aria-current={currentPage === item.page ? 'page' : undefined}
+                >
+                  {currentPage === item.page && <span className="nav-caret" aria-hidden="true">▍</span>}
+                  {item.label}
+                </a>
               </li>
             ))}
           </ul>

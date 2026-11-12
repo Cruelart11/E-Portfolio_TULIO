@@ -1,0 +1,579 @@
+configuration,device_type,device_name,chunk_size,chunk_overlap,top_k,embedding_model,language_model,question_id,difficulty,answerability,question,reference_answer,required_sources,required_evidence,expected_behavior,generated_answer,retrieval_seconds,generation_seconds,total_seconds,generated_tokens,tokens_per_second,answer_correct,retrieval_relevant,source_supported,handled_unanswerable_correctly,final_assessment,evaluation_notes,rank_1_source,rank_1_page,rank_1_chunk_start,rank_1_text,rank_2_source,rank_2_page,rank_2_chunk_start,rank_2_text,rank_3_source,rank_3_page,rank_3_chunk_start,rank_3_text
+C,GPU,Tesla T4,1200,150,3,sentence-transformers/all-MiniLM-L6-v2,Qwen/Qwen3-1.7B,E01,Easy,Answerable,"Under the Labor Code, how many hours may my normal workday last?",The normal hours of work must not exceed eight hours a day.,Labor-Code-of-the-Philippines.pdf,"Article 83, Normal Hours of Work",State the eight-hour limit and identify the Labor Code.,"Under the Labor Code, the normal hours of work for any employee shall not exceed eight (8) hours a day. This is specified in **ART. 83** of the Labor Code of the Philippines. 
+
+Supporting source: [Source 2: Labor-Code-of-the-Philippines.pdf, page 39]",0.013,4.385,4.4022,69,15.7355,Yes,Yes,Yes,Not applicable,Correct,The answer correctly states the eight-hour limit under Article 83 and is supported by the retrieved Labor Code passage.,Labor-Code-of-the-Philippines.pdf,40,0,"28 
+ 
+Rest periods of short duration during working hours shall be counted as hours worked. 
+ 
+ART. 8 5. Meal Periods .73 – Subject to such regulations as the Secretary of Labor may 
+prescribe, it shall be the duty of every employer to give his employees not less than sixty (60) 
+minutes time-off for their regular meals. 
+ 
+ART. 86. Night-Shift Differential. – Every employee shall be paid a night shift differential 
+of not less than ten percent (10%) of his regular wage for each hour of work performed 
+between ten o’clock in the evening and six o’clock in the morning. 
+ 
+ART. 87. Overtime Work . – Work may be performed beyond eight (8) hours a day 
+provided that the employee is paid for the overtime work, an additional compensation 
+equivalent to his regular wage plus at least twenty -five percent (25%) thereof. Work 
+performed beyond eight hours on a holiday or re st day shall be paid an additional 
+compensation equivalent to the rate of the first eight hours on a holiday or rest day plus at 
+least thirty percent (30%) thereof. 
+ 
+ART. 88. Undertime Not Offset by Overtime. 74 – Undertime work on any particular day",Labor-Code-of-the-Philippines.pdf,39,1112,"ART. 83. Normal Hours of Work . – The normal hours of work of any employee shall not 
+exceed eight (8) hours a day. 
+ 
+Health personnel in cities and municipalities with a population of at least one million 
+(1,000,000) or in hospitals and clinics with a bed capacity of at least one hundred (100) shall 
+hold regular office hours for eight (8) hours a day, for five (5) days a week, exclusive of time 
+for meals, except where the exigencies of the service require that such personnel work for six 
+(6) days or forty -eight (48) ho urs, in which case, they shall be entitled to an additional 
+compensation of at least thirty percent (30%) of their regular wage for work on the sixth day. 
+For purposes of this Article, ""health personnel"" shall include resident physicians, nurses, 
+nutritionists, dieticians, pharmacists, social workers, laboratory technicians, paramedical 
+technicians, psychologists, midwives, attendants and all other hospital or clinic personnel.72 
+ 
+ART. 84. Hours Worked . – Hours worked shall include (a) all time during which an 
+employee is required to be on duty or to be at a prescribed workplace; and (b) all time during",Workers-Statutory-Monetary-Benefits-Handbook-2024-Edition.pdf,17,1058,"The basis of the minimum wage rates prescribed by law shall be the normal 
+working hours of eight hours a day. 
+1. Hours worked 
+The following shall be considered as compensable hours worked: 
+a. All time during which an employee is required to be on duty or to be 
+at the employer's premises or to be at a prescribed work place; and 
+b. All time during which an employee is suffered or permitted to work. 
+2. Principles in determining hours worked 
+The following general principles shall govern in determining whether the 
+time spent by an employee is considered hours worked: 
+e Rule I, Book III of the Omnibus Rules Implementing the Labor Code of the Philippines."
+C,GPU,Tesla T4,1200,150,3,sentence-transformers/all-MiniLM-L6-v2,Qwen/Qwen3-1.7B,E02,Easy,Answerable,How much time should my employer generally give me for my regular meal break?,An employer must generally provide not less than sixty minutes of time off for regular meals.,Labor-Code-of-the-Philippines.pdf,"Article 85, Meal Periods",State that the regular meal period is generally not less than sixty minutes.,Your employer should generally give you not less than 60 minutes for your regular meal break. This is specified in **ART. 8** of the **Labor Code of the Philippines** (page 40).,0.0157,3.5771,3.5972,45,12.58,Yes,Yes,Yes,Not applicable,Correct with citation issue,"The 60-minute meal-period answer is correct and supported, but the model cited Article 8 instead of Article 85.",Workers-Statutory-Monetary-Benefits-Handbook-2024-Edition.pdf,19,0,"9 
+ 
+5. Meal and Rest Periods 
+Every employer shall give his employees, regardless of sex, not less than 
+one (1) hour time-off for regular meals, except in the following cases when a 
+meal period of not less than twenty (20) minutes may be given by the 
+employer provided that such shorter meal period is credited as compensable 
+hours worked of the employee: 
+a. Where the work is non -manual work in nature or does not involve 
+strenuous physical exertion; 
+b. Where the establishment regularly operates not less than sixteen 
+(16) hours a day; 
+c. In case of actual or impending emergencies or there is urgent work to 
+be performed on machineries, equipment or installations to avoid 
+serious loss which the employer would otherwise suffer; and 
+d. Where the work is necessary to prevent serious loss of perishable 
+goods. 
+Rest periods or coffee breaks running from five (5) to twenty (20) minutes 
+shall be considered as compensable working time. 
+ 
+D. Monthly-Paid Employees and Daily-Paid Employees 
+“Monthly-paid employees”  are those who are paid every day of the month, 
+including unworked rest days, special days, and regular holidays.  Factor 365 days in",Labor-Code-of-the-Philippines.pdf,40,0,"28 
+ 
+Rest periods of short duration during working hours shall be counted as hours worked. 
+ 
+ART. 8 5. Meal Periods .73 – Subject to such regulations as the Secretary of Labor may 
+prescribe, it shall be the duty of every employer to give his employees not less than sixty (60) 
+minutes time-off for their regular meals. 
+ 
+ART. 86. Night-Shift Differential. – Every employee shall be paid a night shift differential 
+of not less than ten percent (10%) of his regular wage for each hour of work performed 
+between ten o’clock in the evening and six o’clock in the morning. 
+ 
+ART. 87. Overtime Work . – Work may be performed beyond eight (8) hours a day 
+provided that the employee is paid for the overtime work, an additional compensation 
+equivalent to his regular wage plus at least twenty -five percent (25%) thereof. Work 
+performed beyond eight hours on a holiday or re st day shall be paid an additional 
+compensation equivalent to the rate of the first eight hours on a holiday or rest day plus at 
+least thirty percent (30%) thereof. 
+ 
+ART. 88. Undertime Not Offset by Overtime. 74 – Undertime work on any particular day",Labor-Code-of-the-Philippines.pdf,40,2102,"similar nature; 
+ 
+(d) When the work is necessary to prevent loss or damage to perishable goods; and 
+ 
+ 
+73 The Omnibus Rules Implementing the Labor Code allows meal periods to be less than 60 minutes, under specified cases, provided that such shorte r meal 
+periods are credited as compensable hours. 
+ 
+74 See also Department Advisory No. 02 s. 2004, Implementation of Compressed Work Week Schemes, Department Advisory No. 02 s. 2009, Guidelines on the 
+Adoption of Flexible Work Arrangements , and Department Advisory No. 04 s. 2010 , Guidelines on the Implementation of Flexible Work Arrangements and the 
+Exemption from the Nightwork Prohibition for Women Employees in the Business Process Outsourcing Industry. 
+ 
+75 ""National Assembly"" shall refer to the ""Congress"" as the country has reverted to the presidential form of government."
+C,GPU,Tesla T4,1200,150,3,sentence-transformers/all-MiniLM-L6-v2,Qwen/Qwen3-1.7B,E03,Easy,Answerable,"After working six consecutive normal workdays, how long should my weekly rest period be?",The employee must receive a rest period of not less than twenty-four consecutive hours after every six consecutive normal workdays.,Labor-Code-of-the-Philippines.pdf,"Article 91, Right to Weekly Rest Day",State the twenty-four-consecutive-hour rest period after six consecutive normal workdays.,"After working six consecutive normal workdays, your weekly rest period should be not less than twenty-four (24) consecutive hours. This is specified in **Article 91(a)** of the Labor Code of the Philippines.",0.0148,3.1354,3.1563,46,14.6713,Yes,Yes,Yes,Not applicable,Correct,The answer correctly states the required 24 consecutive hours of rest after six consecutive normal workdays.,Labor-Code-of-the-Philippines.pdf,41,0,"29 
+(e) Where the completion or continuation of the work started before the eighth hour is 
+necessary to prevent serious obstruction or prejudice to the business or operations of the 
+employer. 
+ 
+Any employee required to render overtime work under this Article shall be paid the 
+additional compensation required in this Chapter. 
+ 
+ART. 90. Computation of Additional Compensation . – For purposes of computing 
+overtime and other additional remuneration as required by this Chap ter, the ""regular wage"" 
+of an employee shall include the cash wage only, without deduction on account of facilities 
+provided by the employer. 
+ 
+Chapter II – WEEKLY REST PERIODS 
+ 
+ART. 91. Right to Weekly Rest Day.76 – (a) It shall be the duty of every employer, whether 
+operating for profit or not, to provide each of his employees a rest period of not less than 
+twenty-four (24) consecutive hours after every six (6) consecutive normal work days. 
+ 
+(b) The employer shall determine and schedule the weekly rest day of his employees 
+subject to collective bargaining agreement and to such rules and regulations as the Secretary",Workers-Statutory-Monetary-Benefits-Handbook-2024-Edition.pdf,19,0,"9 
+ 
+5. Meal and Rest Periods 
+Every employer shall give his employees, regardless of sex, not less than 
+one (1) hour time-off for regular meals, except in the following cases when a 
+meal period of not less than twenty (20) minutes may be given by the 
+employer provided that such shorter meal period is credited as compensable 
+hours worked of the employee: 
+a. Where the work is non -manual work in nature or does not involve 
+strenuous physical exertion; 
+b. Where the establishment regularly operates not less than sixteen 
+(16) hours a day; 
+c. In case of actual or impending emergencies or there is urgent work to 
+be performed on machineries, equipment or installations to avoid 
+serious loss which the employer would otherwise suffer; and 
+d. Where the work is necessary to prevent serious loss of perishable 
+goods. 
+Rest periods or coffee breaks running from five (5) to twenty (20) minutes 
+shall be considered as compensable working time. 
+ 
+D. Monthly-Paid Employees and Daily-Paid Employees 
+“Monthly-paid employees”  are those who are paid every day of the month, 
+including unworked rest days, special days, and regular holidays.  Factor 365 days in",Labor-Code-of-the-Philippines.pdf,41,2108,"work may result in irreparable injury or loss to the employer; and 
+ 
+ 
+76 See Sec. 4 (Preference of employee), Rule III, Book III of the Omnibus Rules Implementing the Labor Code , which states that: “Where, however, the choice 
+of the employee as to his rest day based on religious grounds will inevitably result in serious prejudice or obstruction to the operations of the undertaking and the 
+employer cannot normally be expected to resort to other remedial measures, the employer may so schedule the weekly rest day of his choice for at least two (2) 
+days in a month.”"
+C,GPU,Tesla T4,1200,150,3,sentence-transformers/all-MiniLM-L6-v2,Qwen/Qwen3-1.7B,E04,Easy,Answerable,I have worked for my employer for at least one year. How many days of service incentive leave may a covered employee receive?,"A covered employee who has rendered at least one year of service is entitled to five days of paid service incentive leave, subject to the stated coverage exceptions.",Labor-Code-of-the-Philippines.pdf | Workers-Statutory-Monetary-Benefits-Handbook-2024-Edition.pdf,Article 95 and the Handbook section on Service Incentive Leave,State five paid days and avoid claiming that every employee is covered without exception.,"A covered employee who has worked for their employer for at least one year is entitled to **five days of service incentive leave**. This leave may be used for sick, vacation, or other leave purposes. 
+
+This information is based on **Source 2: Labor-Code-of-the-Philippines.pdf, page 43** (Article 95, Section (a)) and **Source 1: Workers-Statutory-Monetary-Benefits-Handbook-2024-Edition.pdf, page 39** (Section C and D).",0.0121,6.5813,6.5984,117,17.7775,Yes,Yes,Yes,Not applicable,Correct,The answer correctly states five days of service incentive leave and is supported by Article 95 and the Handbook.,Workers-Statutory-Monetary-Benefits-Handbook-2024-Edition.pdf,39,0,"29 
+ 
+5. Field personnel and those whose time and performance is unsupervised 
+by the employer; 
+6. Those already enjoying this benefit; 
+7. Those enjoying vacation leave with pay of at least five days; and 
+8. Those employed in establishments regularly employing less than ten  
+employees. 
+C. Meaning of “one year of service” 
+The phrase “one year of service” of the employee means service within 12 
+months, whether continuous or broken, reckoned from the date the employee 
+started working.  The period includes authorized absences, unworked weekly rest 
+days, and paid regular holidays. If through individual or collective agreement, 
+company practice, or policy, the period of the working days is less than 12 months, 
+said period shall be considered as one year for the purpose of determining the 
+entitlement to the service incentive leave.x 
+D. Conversion 
+The employee may choose to either use his/her leave credit  or commute it to 
+its monetary equivalent if not exhausted at the end of the year. If the employee does 
+not use or commute his/her SIL, he/she is entitled upon his/her resignation or 
+separation from work to the commutation of the same.y",Labor-Code-of-the-Philippines.pdf,43,0,"31 
+(c) As used in this Article, ""holiday"" includes: New Year’s Day, Maundy Thursday, Good 
+Friday, the ninth of April, the first of May, the twelfth of June, the fourth of July, the thirtieth 
+of November, the twenty -fifth and thirtieth of December and the day designated by law for 
+holding a general election.79 
+ 
+ART. 95. Right to Service Incentive Leave.80 – (a) Every employee who has rendered at 
+least one year of service shall be entitled to a yearly service incentive leave of five days with 
+pay. 
+ 
+(b) This provision shall not apply to those who are already enjoying the benefit herein 
+provided, those enjoying vacation leave with pay of at least five days and those employed in 
+establishments regularly employing less than ten employees or in establishments exempted 
+from granting this benefit by the Secretary of Labor and Employment after cons idering the 
+viability or financial condition of such establishment. 
+ 
+(c) The grant of benefit in excess of that provided herein shall not be made a subject of 
+arbitration or any court or administrative action. 
+ 
+ART. 96. Service Charges .81 – All service cha rges collected by hotels, restaurants and",Workers-Statutory-Monetary-Benefits-Handbook-2024-Edition.pdf,38,0,"28 
+ 
+7 
+SERVICE INCENTIVE LEAVE 
+(Article 95) 
+A. Definition 
+Service incentive leave (SIL) refers to the paid leave of five  days granted to an 
+employee who has rendered at least one year of service that may be used for sick, 
+vacation, and other leave purposes. 
+B. Coverage 
+This benefit applies to every employee who has rendered at least one  year of 
+service, except the following: 
+1. Government employees, whether employed by the National Government 
+or any of its political subdivisions, including those employed in 
+government-owned and/or controlled corporations with original charters 
+or created under special laws; 
+2. Persons in the personal service of another; 
+3. Managerial employees, if they meet all of the following conditions: 
+3.1 Their primary duty is to manage the establishment in which they are 
+employed or of a department or subdivision thereof;  
+3.2 They customarily and regularly direct the work of two or more 
+employees therein; and 
+3.3 They have the authority to hire or fire other employees of lower rank; or 
+their suggestions and recommendations as to hiring, firing, and 
+promotion, or any other change of status of other employees are given"
+C,GPU,Tesla T4,1200,150,3,sentence-transformers/all-MiniLM-L6-v2,Qwen/Qwen3-1.7B,E05,Average,Answerable,When should my thirteenth-month pay be given?,The thirteenth-month pay must be paid not later than December 24 of every year.,Workers-Statutory-Monetary-Benefits-Handbook-2024-Edition.pdf,"Thirteenth-Month Pay section, Time of Payment",State the December 24 deadline.,"The thirteenth-month pay shall be paid not later than December 24 of every year. An employer, however, may give to his or her employees one-half (1/2) of the thirteenth-month pay before the opening of the regular school year and the remaining half on or before December 24 of every year. The frequency of payment of this monetary benefit may be the subject of an agreement between the employer and the recognized/collective bargaining agent of the employees.",0.0106,6.5282,6.5433,100,15.3182,Yes,Yes,Yes,Not applicable,Correct,The answer correctly states that thirteenth-month pay must be given not later than December 24.,Workers-Statutory-Monetary-Benefits-Handbook-2024-Edition.pdf,50,1050,"entitled to the thirteenth-month pay. 
+The following employers are not covered by Presidential Decree No. 851: 
+1. The government and any of its political subdivisions, including 
+government-owned and controlled corporations, except those 
+corporations operating essentially as private subsidiaries of the 
+government; 
+2. Employers who are already paying their employees a thirteenth-month pay 
+or more in a calendar year or its equivalent kk at the time of the issuance of 
+Presidential Decree No. 851; 
+3. Employers of household helpers ll and persons in the personal service of 
+another in relation to such workers; and 
+4. Employers of those who are paid on purely commission, boundary, or task 
+basis, and those who are paid a fixed amount for performing specific work, 
+jj See Revised Guidelines on the Implementation of the 13th Month Pay Law. See also DOLE Labor Advisory 
+No. 18, Series of 2021 entitled Guidelines on the Payment of Thirteenth Month Pay. Issued on 25 October 
+2021. 
+kk The term ""its equivalent"" shall include Christmas bonus, midyear bonus, cash bonuses, and other",Workers-Statutory-Monetary-Benefits-Handbook-2024-Edition.pdf,52,0,"42 
+ 
+E. Time of Payment 
+E. 
+The thirteenth-month pay shall be paid not later than December 24 of every 
+year. An employer, however, may give to his or her employees one-half (1/2) of the 
+thirteenth-month pay before the opening of the regular school year and the 
+remaining half on or before December 24 of every year.  The frequency of payment 
+of this monetary benefit may be the subject of an agreement between the employer 
+and the recognized/collective bargaining agent of the employees. 
+F.  Thirteenth-Month Pay for Certain Types of Employees 
+1. Employees who are paid on piecework basis are entitled to the thirteenth-
+month pay. 
+2. Employees who are paid a fixed or guaranteed wage plus commission are 
+also entitled to the thirteenth -month pay, based on their earnings during 
+the calendar year (e.g., on both their fixed or guaranteed wage and 
+commission). 
+In Boie-Takeda Chemicals, Inc. vs. De la Sernann, the Supreme Court ruled that 
+commissions, while included in the generic term wage, are not part of ""basic 
+salary/wage"" and therefore should not be included in computing the thirteenth -
+month pay. Thus: 
+In remunerative schemes consisting of a fixed or guaranteed wage",Workers-Statutory-Monetary-Benefits-Handbook-2024-Edition.pdf,52,1113,"month pay. Thus: 
+In remunerative schemes consisting of a fixed or guaranteed wage 
+plus commission, the fixed or guaranteed wage is patently the 
+""basic salary"" for this is what the employee receives for a standard 
+work period. Commissions are given for extra efforts exerted  in 
+consummating sales or other related transactions. They are, as 
+such, additional pay, which this Court has made clear do not form 
+part of the ""basic salary"". 
+3. Employees with multiple employers. 
+Government employees working part -time in a private enterprise, 
+including private educational institutions, as well as employees working in 
+two or more private firms, whether on full -time or part -time basis, are 
+entitled to the thirteenth -month pay from al l their private employers, 
+regardless of their total earnings from each of their employers. 
+G. Thirteenth-Month Pay of Resigned or Separated Employee 
+An employee who has resigned or whose services are terminated at any time 
+before the time of payment of the thirteenth-month pay is entitled to this monetary 
+benefit in proportion to the length of time he or she has worked during the year,"
+C,GPU,Tesla T4,1200,150,3,sentence-transformers/all-MiniLM-L6-v2,Qwen/Qwen3-1.7B,E06,Average,Answerable,"If I work for eight hours on a regular holiday that is not my rest day, what percentage of my basic wage should I receive?","For the first eight hours of work on a regular holiday, the employee must receive 200% of the basic wage.",Labor-Code-of-the-Philippines.pdf | Workers-Statutory-Monetary-Benefits-Handbook-2024-Edition.pdf,Article 94 and the Handbook's Holiday Pay section,State a total pay rate of 200% without adding the basic wage again.,"If you work for eight hours on a regular holiday that is not your rest day, you are entitled to **200% of your basic wage** for that day. This is based on the minimum statutory holiday pay rate specified in **Source 2**. 
+
+The calculation is:  
+**Basic wage x 200%**.  
+
+This applies to work done during a regular holiday, and it is based on the statutory minimum holiday pay rate for regular holidays.",0.0114,5.8657,5.8816,97,16.5367,Yes,Yes,Yes,Not applicable,Correct,The answer correctly states a total payment of 200% of the basic wage for the first eight hours of regular-holiday work.,Workers-Statutory-Monetary-Benefits-Handbook-2024-Edition.pdf,32,0,"22 
+ 
+unworked. 
+On the other hand, work performed on special  (non-working) days merits 
+additional compensation of at least  30% of the basic wage or a total of  130%. 
+Where the employee works on a special  (non-working) day falling on his rest day, 
+he/she shall be entitled to an additional compensation of  50% of his/her basic 
+wage or a total of 150%. 
+The minimum statutory premium pay rates are as follows: 
+1. If the employee does not work, the “no work, no pay” principle shall apply 
+unless there is a favorable company policy, practice, or CBA granting 
+payment on a special day. 
+2. For work done during a special (non -working) day, the employer shall pay 
+the employee an additional 30% of the basic wage on the first eight hours 
+of work. (basic wage x 130%) 
+3. For work done during a special (non -working) day that also falls on the 
+employee’s rest day, the employer shall p ay the employee an additional 
+50% of the basic wage on the first eight hours of work. (basic wage x 150%) 
+4. For work done during a regular holiday that also falls on the employee’s rest 
+day, the employer shall pay the employee an additional 30% of the basic",Workers-Statutory-Monetary-Benefits-Handbook-2024-Edition.pdf,28,0,"18 
+ 
+provision in the Collective Bargaining Agreement (CBA) providing for payment of 
+wages and other benefits for days declared as special days even if unworked. 
+The minimum statutory holiday pay rates are as follows: 
+1. If the employee does not work , the employer shall pay 100% of the 
+employee's wage for that day. (basic wage x 100%) 
+2. For work done during the regular holiday , the employer shall pay a total of 
+200% of the employee's wage for that day for the first eight hours. (basic 
+wage x 200%) 
+3. If the employee does not work on a double regular holiday, the employer 
+shall pay 200% of the employee’s wage for that day. (basic wage x 200%) 
+4. For work done during a  double regular holiday, the employer shall pay a 
+total of 200% of the employee's wage for that day for the first eight hours.  
+(basic wage x 300%) 
+E. Absences 
+1. All covered employees shall be entitled to holiday pay when they are on 
+leave of absence with pay on the workday immediately preceding the 
+regular holiday. Employees who are on leave of absence without pay on the 
+day immediately preceding a regular holiday may not be paid the required",Workers-Statutory-Monetary-Benefits-Handbook-2024-Edition.pdf,33,1030,"wage x 150% 130% x number of overtime work hours) 
+4. For work done in excess of eight hours on a regular holiday, the employer 
+shall pay the employee an additional 30% of the hourly rate on said day. 
+(hourly rate of the basic wage x 200% 130% x number of overtime work 
+hours) 
+5. For work done in excess of eight hours on a regular holiday that also falls 
+on the employee’s rest day, the employer shall pay the employee an 
+additional 30% of the hourly rate on said day. (hourly rate of the basic 
+wage x 200% 130% x 130% x number of overtime work hours) 
+D. Stipulated Overtime Rates 
+Generally, the premium pay for work performed on rest days, special days, or 
+regular holidays is included as part of the regular rate of the employee in the 
+computation of overtime pay for overtime work rendered on said days, especially 
+if the employer pays only the minimum overtime rates prescribed by law."
+C,GPU,Tesla T4,1200,150,3,sentence-transformers/all-MiniLM-L6-v2,Qwen/Qwen3-1.7B,E07,Average,Answerable,I worked for eight hours on a special non-working day that also fell on my scheduled rest day. What total percentage of my basic wage should I receive?,The employee must receive a total of 150% of the basic wage for the first eight hours.,Workers-Statutory-Monetary-Benefits-Handbook-2024-Edition.pdf,Premium Pay Rates for a special non-working day falling on the employee's rest day,State a total rate of 150% for the first eight hours.,"Based on the information provided in the context:
+
+- If the employee works on a special (non-working) day that also falls on the employee’s rest day, the employer shall pay the employee an additional 50% of the basic wage on the first eight hours of work. This is calculated as:  
+  **Basic wage x 150%**.
+
+Therefore, the total percentage of the basic wage you should receive is **150%**.",0.0121,6.3872,6.4048,95,14.8734,Yes,Yes,Yes,Not applicable,Correct,The answer correctly states a total payment of 150% for work on a special non-working day that falls on the employee's rest day.,Workers-Statutory-Monetary-Benefits-Handbook-2024-Edition.pdf,32,0,"22 
+ 
+unworked. 
+On the other hand, work performed on special  (non-working) days merits 
+additional compensation of at least  30% of the basic wage or a total of  130%. 
+Where the employee works on a special  (non-working) day falling on his rest day, 
+he/she shall be entitled to an additional compensation of  50% of his/her basic 
+wage or a total of 150%. 
+The minimum statutory premium pay rates are as follows: 
+1. If the employee does not work, the “no work, no pay” principle shall apply 
+unless there is a favorable company policy, practice, or CBA granting 
+payment on a special day. 
+2. For work done during a special (non -working) day, the employer shall pay 
+the employee an additional 30% of the basic wage on the first eight hours 
+of work. (basic wage x 130%) 
+3. For work done during a special (non -working) day that also falls on the 
+employee’s rest day, the employer shall p ay the employee an additional 
+50% of the basic wage on the first eight hours of work. (basic wage x 150%) 
+4. For work done during a regular holiday that also falls on the employee’s rest 
+day, the employer shall pay the employee an additional 30% of the basic",Workers-Statutory-Monetary-Benefits-Handbook-2024-Edition.pdf,33,1030,"wage x 150% 130% x number of overtime work hours) 
+4. For work done in excess of eight hours on a regular holiday, the employer 
+shall pay the employee an additional 30% of the hourly rate on said day. 
+(hourly rate of the basic wage x 200% 130% x number of overtime work 
+hours) 
+5. For work done in excess of eight hours on a regular holiday that also falls 
+on the employee’s rest day, the employer shall pay the employee an 
+additional 30% of the hourly rate on said day. (hourly rate of the basic 
+wage x 200% 130% x 130% x number of overtime work hours) 
+D. Stipulated Overtime Rates 
+Generally, the premium pay for work performed on rest days, special days, or 
+regular holidays is included as part of the regular rate of the employee in the 
+computation of overtime pay for overtime work rendered on said days, especially 
+if the employer pays only the minimum overtime rates prescribed by law.",Labor-Code-of-the-Philippines.pdf,40,0,"28 
+ 
+Rest periods of short duration during working hours shall be counted as hours worked. 
+ 
+ART. 8 5. Meal Periods .73 – Subject to such regulations as the Secretary of Labor may 
+prescribe, it shall be the duty of every employer to give his employees not less than sixty (60) 
+minutes time-off for their regular meals. 
+ 
+ART. 86. Night-Shift Differential. – Every employee shall be paid a night shift differential 
+of not less than ten percent (10%) of his regular wage for each hour of work performed 
+between ten o’clock in the evening and six o’clock in the morning. 
+ 
+ART. 87. Overtime Work . – Work may be performed beyond eight (8) hours a day 
+provided that the employee is paid for the overtime work, an additional compensation 
+equivalent to his regular wage plus at least twenty -five percent (25%) thereof. Work 
+performed beyond eight hours on a holiday or re st day shall be paid an additional 
+compensation equivalent to the rate of the first eight hours on a holiday or rest day plus at 
+least thirty percent (30%) thereof. 
+ 
+ART. 88. Undertime Not Offset by Overtime. 74 – Undertime work on any particular day"
+C,GPU,Tesla T4,1200,150,3,sentence-transformers/all-MiniLM-L6-v2,Qwen/Qwen3-1.7B,E08,Difficult,Answerable,"I earn the ₱755 first-tranche daily minimum wage under Wage Order NCR-27. If I work for eight hours on a regular holiday that is not my rest day and I do not work overtime, how much total pay should I receive for that day?","Work during a regular holiday for the first eight hours is paid at 200% of the basic wage. Therefore, ₱755 multiplied by 200% equals ₱1,510.",Wage-Order-No.-NCR-27.pdf | Workers-Statutory-Monetary-Benefits-Handbook-2024-Edition.pdf,Wage Order NCR-27 for the ₱755 rate and the Handbook's Holiday Pay section for the 200% rate,"Combine evidence from two documents and calculate ₱1,510. Do not add another ₱755 after applying 200%.","The total pay for a regular holiday day that is not your rest day, where you work for eight hours and do not receive overtime, is calculated as follows:
+
+1. **Basic Wage**: ₱755 (first-tranche daily minimum wage under Wage Order NCR-27).
+2. **Holiday Pay**: For a regular holiday, the employer is required to pay **200% of the basic wage** for the first eight hours of work.  
+   - 200% of ₱755 = ₱1,510.
+
+**Total Pay for the Day**: ₱1,510 (holiday pay) + ₱755 (basic wage) = ₱2,265.
+
+This calculation is based on the provisions in **Source 2** (Workers-Statutory-Monetary-Benefits-Handbook-2024-Edition.pdf, page 51), which outlines the statutory holiday pay rates for regular holidays.",0.0107,12.0782,12.0937,213,17.6351,No,Partial,Partial,Not applicable,Incorrect,"The model correctly calculated 200% of PHP 755 as PHP 1,510 but incorrectly added another PHP 755, producing PHP 2,265. The retrieved evidence did not include Wage Order NCR-27, and the cited Handbook page 51 concerns thirteenth-month pay.",Workers-Statutory-Monetary-Benefits-Handbook-2024-Edition.pdf,32,0,"22 
+ 
+unworked. 
+On the other hand, work performed on special  (non-working) days merits 
+additional compensation of at least  30% of the basic wage or a total of  130%. 
+Where the employee works on a special  (non-working) day falling on his rest day, 
+he/she shall be entitled to an additional compensation of  50% of his/her basic 
+wage or a total of 150%. 
+The minimum statutory premium pay rates are as follows: 
+1. If the employee does not work, the “no work, no pay” principle shall apply 
+unless there is a favorable company policy, practice, or CBA granting 
+payment on a special day. 
+2. For work done during a special (non -working) day, the employer shall pay 
+the employee an additional 30% of the basic wage on the first eight hours 
+of work. (basic wage x 130%) 
+3. For work done during a special (non -working) day that also falls on the 
+employee’s rest day, the employer shall p ay the employee an additional 
+50% of the basic wage on the first eight hours of work. (basic wage x 150%) 
+4. For work done during a regular holiday that also falls on the employee’s rest 
+day, the employer shall pay the employee an additional 30% of the basic",Workers-Statutory-Monetary-Benefits-Handbook-2024-Edition.pdf,51,1049,"employees, through individual or collective agreement, company practice or 
+policy.  
+D. Computation 
+Total basic salary earned during the year   
+12 months = proportionate 13th-month pay  
+To illustrate, assume Employee A earned ₱184,219.96 as his basic salary in a 
+calendar year. In this case, his proportionate 13 th-month pay shall be computed 
+as follows: 
+January no absence ₱15,910.83  
+February no absence 15,910.83  
+March no absence 15,910.83  
+April no absence 15,910.83  
+May no absence 15,910.83  
+June 5 days leave with pay 15,910.83  
+July no absence 15,910.83 
+August no absence 15,910.83  
+September 10 days leave w/o pay 9,810.83  
+October no absence 15,910.83  
+November 1 day leave w/o pay 15,300.83  
+December no absence 15,910.83 
+Total basic salary earned for the year            ₱184,219.96 
+Proportionate 13th-month pay (₱184,219.96/12)              ₱15,351.66 
+ 
+mm “Workers paid on piece-rate basis” refer to those who are paid a standard amount for every piece or 
+unit of work produced that is more or less regularly replicated, without regard to the time spent in 
+producing the same.",Workers-Statutory-Monetary-Benefits-Handbook-2024-Edition.pdf,28,0,"18 
+ 
+provision in the Collective Bargaining Agreement (CBA) providing for payment of 
+wages and other benefits for days declared as special days even if unworked. 
+The minimum statutory holiday pay rates are as follows: 
+1. If the employee does not work , the employer shall pay 100% of the 
+employee's wage for that day. (basic wage x 100%) 
+2. For work done during the regular holiday , the employer shall pay a total of 
+200% of the employee's wage for that day for the first eight hours. (basic 
+wage x 200%) 
+3. If the employee does not work on a double regular holiday, the employer 
+shall pay 200% of the employee’s wage for that day. (basic wage x 200%) 
+4. For work done during a  double regular holiday, the employer shall pay a 
+total of 200% of the employee's wage for that day for the first eight hours.  
+(basic wage x 300%) 
+E. Absences 
+1. All covered employees shall be entitled to holiday pay when they are on 
+leave of absence with pay on the workday immediately preceding the 
+regular holiday. Employees who are on leave of absence without pay on the 
+day immediately preceding a regular holiday may not be paid the required"
+C,GPU,Tesla T4,1200,150,3,sentence-transformers/all-MiniLM-L6-v2,Qwen/Qwen3-1.7B,E09,Difficult,Unanswerable,What is the current daily minimum wage for a private-sector worker in Cebu City?,"The indexed documents do not provide the current minimum wage for Cebu City. Wage Order NCR-27 applies to the National Capital Region, so a Cebu wage order or another official source is required.",,No supporting Cebu wage-rate passage exists in the indexed documents.,Clearly state that the documents are insufficient and do not invent a Cebu wage rate.,"The current daily minimum wage for a private-sector worker in Cebu City is not explicitly stated in the provided context. The documents mention that the 2024 Edition of the Handbook on Workers’ Statutory Benefits includes updates to the daily minimum wage for private sector workers and the updated monthly minimum wage for domestic helpers (""Kasambahay""). However, specific details about the daily minimum wage for Cebu City are not provided in the given sources. 
+
+The documents do not contain sufficient information to determine the current daily minimum wage for a private-sector worker in Cebu City.",0.0106,6.8614,6.8769,119,17.3433,Yes,Yes,Yes,Yes,Correct,The chatbot correctly stated that the indexed documents do not provide the current Cebu City wage and did not invent an amount.,Workers-Statutory-Monetary-Benefits-Handbook-2024-Edition.pdf,5,0,"Republic of the Philippines 
+                                  DEPARTMENT OF LABOR AND EMPLOYMENT 
+                                                       Intramuros, Manila 
+  
+        MESSAGE FROM THE SECRETARY 
+The Department of Labor and Employment proudly presents 
+the 2024 Edition of the Handbook on Workers’ Statutory Benefits, 
+featuring the latest updates and significant developments in labor 
+standards, rules, and regulations. 
+Building upon the foundation laid by the 2023 edition, our 2024 
+update reaffirms our commitment to providing current information 
+and guidance on workers' wages and related benefits. This edition 
+features direct links to recent wage orders which reflect the 
+increased daily minimum wage for private  sector workers and the 
+updated monthly minimum wage of domestic helpers or 
+""Kasambahay."" Additionally , this integrates important updates from DOLE 
+Department Order 242, Series of 2024, which revises the Rules and Regulations of 
+Article 96 of the Labor Code of the Philippines, as amended by Republic Act No. 11360 
+expanding coverage and distribution of service charges. The handbook also provides a",Wage-Order-No.-NCR-27.pdf,1,0,"Republic of the Philippines 
+Department of Labor and Employment 
+Y National Wages and Productivity Commission 
+Sosoorzoscernred REGIONAL TRIPARTITE WAGES AND PRODUCTIVITY BOARD - NCR gacone pnupmas 
+WAGE ORDER NO. NCR-27 
+PROVIDING FOR A MINIMUM WAGE INCREASE FOR PRIVATE WORKERS 
+IN THE NATIONAL CAPITAL REGION 
+WHEREAS, the Regional Tripartite Wages and Productivity Board-NCR is 
+mandated under Republic Act No. 6727 (RA No. 6727), otherwise known as the 
+Wage Rationalization Act, to periodically assess wage rates and conduct 
+continuing studies in the determination of the minimum wage applicable in the 
+region or industry; 
+WHEREAS, the current Wage Order No. NCR-26 took effect on July 18, 
+2025; 
+WHEREAS, the Board received and resolved to consolidate several wage 
+petitions filed by various labor organizations seeking varying amounts of 
+minimum wage increase per day for the minimum wage earners in the private 
+sector in the region, to wit: 
+Petitioners Date Filed 
+Kapatiran ng mga Unyon at Samahang Manggagawa 
+(KAPATIRAN) 
+April 23, 2026 
+Pasig Labor Alliance for Democracy and Development 
+(PALAD) 
+April 27, 2026 
+Workers for Empowerment, Reforms and Solidarity 
+(WORKERS)",Workers-Statutory-Monetary-Benefits-Handbook-2024-Edition.pdf,16,0,"6 
+ 
+Region V - Bicol 
+Region VI - Western Visayas 
+Region VII - Central Visayas 
+Region VIII - Eastern Visayas 
+Region IX - Western Mindanao or Zamboanga Peninsula 
+Region X - Northern Mindanao 
+Region XI - Southern Mindanao or Davao 
+Region XII - Central Mindanao or SOCCSKSARGEN (South 
+Cotabato, North Cotabato, Sultan Kudarat, 
+Sarangani, and General Santos) 
+Caraga Regionc - Provinces of Agusan del Norte, Agusan del Sur, 
+Surigao del Norte, and Surigao del Sur 
+Bangsamoro Autonomous Region in Muslim Mindanao (BARMM)d 
+The Regional Wage Orders prescribe the daily minimum wage rates per industry 
+per locality within the region and in some instances depending on the number of 
+workers. 
+A. Coverage 
+The wage increases prescribed under Wage Orders apply to all private sector 
+workers and employees receiving the daily minimum wage rates or those receiving up 
+to a certain daily wage ceiling, where applicable, regardless of their position, 
+designation, or status of employment, and irrespective of the method by which their 
+wages are paid, except workers of duly registered Barangay Micro Business 
+Enterprises (BMBEs) with Certificate of Authority pursuant to Republic Act No. 10644."
+C,GPU,Tesla T4,1200,150,3,sentence-transformers/all-MiniLM-L6-v2,Qwen/Qwen3-1.7B,E10,Difficult,Unanswerable,On what exact dates does my employer release our salaries each month?,"The indexed documents cannot identify the exact payroll dates used by the employee's employer. The employee must consult the employer's payroll schedule, employment documents, or human resources office.",,No employer-specific payroll schedule exists in the indexed documents.,Explain that the exact company payroll dates cannot be determined from the available documents.,"The documents do not provide specific information about the exact dates when an employer releases salaries each month. However, it is common practice for employers in Metro Manila to release salaries on the last day of the month. For example, if the month is January, salaries are typically released on January 31. This is based on general labor practices and is not explicitly stated in the provided context.",0.011,5.4496,5.4647,78,14.3129,Partial,No,No,Partial,Partially Correct,"The chatbot first recognized that exact employer payroll dates were unavailable, but it then invented an unsupported claim that salaries are commonly released on the last day of the month.",Workers-Statutory-Monetary-Benefits-Handbook-2024-Edition.pdf,50,1050,"entitled to the thirteenth-month pay. 
+The following employers are not covered by Presidential Decree No. 851: 
+1. The government and any of its political subdivisions, including 
+government-owned and controlled corporations, except those 
+corporations operating essentially as private subsidiaries of the 
+government; 
+2. Employers who are already paying their employees a thirteenth-month pay 
+or more in a calendar year or its equivalent kk at the time of the issuance of 
+Presidential Decree No. 851; 
+3. Employers of household helpers ll and persons in the personal service of 
+another in relation to such workers; and 
+4. Employers of those who are paid on purely commission, boundary, or task 
+basis, and those who are paid a fixed amount for performing specific work, 
+jj See Revised Guidelines on the Implementation of the 13th Month Pay Law. See also DOLE Labor Advisory 
+No. 18, Series of 2021 entitled Guidelines on the Payment of Thirteenth Month Pay. Issued on 25 October 
+2021. 
+kk The term ""its equivalent"" shall include Christmas bonus, midyear bonus, cash bonuses, and other",Workers-Statutory-Monetary-Benefits-Handbook-2024-Edition.pdf,19,1082,"including unworked rest days, special days, and regular holidays.  Factor 365 days in 
+a year is used in determining the equivalent monthly salary of monthly -paid 
+employees. 
+“Daily-paid employees” are those who are paid on the days they actually worked 
+and on unworked regular holidays. 
+ 
+E. Computation of the Estimated Equivalent Monthly Rate (EEMR) of Monthly-
+Paid and Daily-Paid Employeesf 
+Without prejudice to existing company policies, practices , or agreements, the 
+following formulag are merely suggestions and may be used as guides in determining 
+the equivalent monthly minimum wage rates. 
+ 
+ 
+ 
+f Section 6, Chapter I of the Rules Implementing Republic Act No. 6727. 
+g The breakdown of the formula provided may vary depending on the proclaimed regular holidays and special 
+(non-working) days in a year. Additionally, if the year is a leap year, one day shall be added to account for the 
+extra day in February.",Workers-Statutory-Monetary-Benefits-Handbook-2024-Edition.pdf,52,1113,"month pay. Thus: 
+In remunerative schemes consisting of a fixed or guaranteed wage 
+plus commission, the fixed or guaranteed wage is patently the 
+""basic salary"" for this is what the employee receives for a standard 
+work period. Commissions are given for extra efforts exerted  in 
+consummating sales or other related transactions. They are, as 
+such, additional pay, which this Court has made clear do not form 
+part of the ""basic salary"". 
+3. Employees with multiple employers. 
+Government employees working part -time in a private enterprise, 
+including private educational institutions, as well as employees working in 
+two or more private firms, whether on full -time or part -time basis, are 
+entitled to the thirteenth -month pay from al l their private employers, 
+regardless of their total earnings from each of their employers. 
+G. Thirteenth-Month Pay of Resigned or Separated Employee 
+An employee who has resigned or whose services are terminated at any time 
+before the time of payment of the thirteenth-month pay is entitled to this monetary 
+benefit in proportion to the length of time he or she has worked during the year,"

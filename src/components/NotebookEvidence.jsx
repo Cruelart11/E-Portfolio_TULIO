@@ -1,4 +1,12 @@
-function NotebookEvidence({ title, filename, imagePath, alt, description = '', reflection = '' }) {
+function NotebookEvidence({
+  title,
+  filename,
+  imagePath,
+  alt,
+  description = '',
+  reflection = '',
+  score,
+}) {
   const imageUrl = `${import.meta.env.BASE_URL}${imagePath}`
 
   return (
@@ -20,6 +28,7 @@ function NotebookEvidence({ title, filename, imagePath, alt, description = '', r
             <p>Combined assessment evidence</p>
             <h2>{title}</h2>
             <p className="notebook-filename">{filename}</p>
+            {score !== undefined && <p className="notebook-score">Score: {score}</p>}
           </div>
           <span aria-hidden="true">JPG</span>
         </div>

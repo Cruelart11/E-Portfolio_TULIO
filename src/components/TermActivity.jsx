@@ -1,8 +1,9 @@
 import DocumentPreview from './DocumentPreview.jsx'
 
-function TermActivity({ type, number, title, description, reflection, documents }) {
+function TermActivity({ type, number, title, description, reflection, documents, children }) {
   const activitySlug = `${type}-${number}`.toLowerCase().replaceAll(' ', '-')
   const titleId = `${activitySlug}-title`
+  const reflectionParagraphs = Array.isArray(reflection) ? reflection : [reflection]
 
   return (
     <article className="prelim-activity" aria-labelledby={titleId}>
@@ -18,7 +19,9 @@ function TermActivity({ type, number, title, description, reflection, documents 
         </section>
         <section aria-labelledby={`${activitySlug}-reflection`}>
           <h3 id={`${activitySlug}-reflection`}>Learning Reflection</h3>
-          <p>{reflection}</p>
+          {reflectionParagraphs.map((paragraph) => (
+            <p key={paragraph}>{paragraph}</p>
+          ))}
         </section>
       </div>
       <div className="document-preview-list">
@@ -26,6 +29,7 @@ function TermActivity({ type, number, title, description, reflection, documents 
           <DocumentPreview key={`${activitySlug}-${document.title}`} {...document} />
         ))}
       </div>
+      {children}
     </article>
   )
 }

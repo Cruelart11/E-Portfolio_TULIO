@@ -165,6 +165,9 @@ function PrelimPage() {
                 filename="prelim-quiz-exam.jpg"
                 imagePath="documents/prelim/prelim-quiz-exam-notebook/prelim-quiz-exam.jpg"
                 alt="Blue examination notebook for the combined Prelim long quiz and examination"
+                description="This combined Prelim Long Quiz and Exam was completed face-to-face in a blue notebook. The assessment covered foundational concepts in Natural Language Processing and machine learning, including word embeddings, cosine similarity, the main parts of an artificial neuron, and the difference between parameters and hyperparameters. The notebook images serve as evidence of the written assessment and the score recorded for this period."
+                reflection="The combined Prelim Long Quiz and Exam helped me review and strengthen my understanding of the basic concepts of Natural Language Processing and their connection to machine learning. I learned how word embeddings represent words as numerical vectors and how cosine similarity can be used to measure how closely those vectors are related. I also reviewed the parts of an artificial neuron, including its inputs, weights, summation, and activation function, and how they work together to process information and produce an output. Another important takeaway was understanding the difference between parameters and hyperparameters. Parameters are learned and adjusted by the model during training, while hyperparameters are selected by the modeler to guide the training process. Looking at these concepts together helped me see more clearly how text can be transformed into numerical information and processed by a machine learning model. Overall, the assessment gave me an opportunity to test what I understood, recognize which topics needed more review, and strengthen my foundation in NLP and neural networks."
+                score="15"
               />
             )}
           </PrelimFolder>

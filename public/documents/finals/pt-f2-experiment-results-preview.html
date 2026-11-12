@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PT-F2 Experiment Results</title>
+    <style>
+      :root { color-scheme: dark; font-family: Arial, sans-serif; }
+      * { box-sizing: border-box; }
+      body { margin: 0; color: #e6edf3; background: #0d1117; }
+      table { min-width: 1900px; border-collapse: collapse; font-size: 12px; }
+      th, td { min-width: 108px; max-width: 280px; padding: 8px 10px; border: 1px solid #30363d; vertical-align: top; white-space: normal; }
+      thead th, tbody th { position: sticky; color: #8b98ac; background: #161b22; font-family: monospace; font-weight: 400; }
+      thead th { top: 0; z-index: 2; }
+      tbody th { left: 0; min-width: 44px; z-index: 1; text-align: right; }
+      thead th:first-child { left: 0; z-index: 3; min-width: 44px; }
+      td { background: #0d1117; line-height: 1.45; }
+      tr:nth-child(even) td { background: #10151d; }
+      td.is-bold { color: #7ee787; font-weight: 700; }
+    </style>
+  </head>
+  <body>
+    <table aria-label="PT-F2 configuration results data">
+      <thead><tr><th aria-label="Row number"></th><th scope="col">A</th><th scope="col">B</th><th scope="col">C</th><th scope="col">D</th><th scope="col">E</th><th scope="col">F</th><th scope="col">G</th><th scope="col">H</th></tr></thead>
+      <tbody><tr><th scope="row">1</th><td class="is-bold">Configuration</td><td class="is-bold">Chunk_Size</td><td class="is-bold">Chunk_Overlap</td><td class="is-bold">Total_Chunks</td><td class="is-bold">Indexing_Time_Seconds</td><td class="is-bold">Precision_at_3</td><td class="is-bold">Recall_at_3</td><td class="is-bold">MRR_at_3</td></tr><tr><th scope="row">2</th><td>C1</td><td>300</td><td>0</td><td>517</td><td>0.7295</td><td>0.2593</td><td>0.4444</td><td>0.3704</td></tr><tr><th scope="row">3</th><td>C2</td><td>300</td><td>30</td><td>569</td><td>1.0291</td><td>0.2963</td><td>0.463</td><td>0.5</td></tr><tr><th scope="row">4</th><td>C3</td><td>300</td><td>60</td><td>633</td><td>0.9062</td><td>0.2222</td><td>0.4259</td><td>0.5</td></tr><tr><th scope="row">5</th><td>C4</td><td>500</td><td>0</td><td>323</td><td>0.7268</td><td>0.3704</td><td>0.5185</td><td>0.3704</td></tr><tr><th scope="row">6</th><td>C5</td><td>500</td><td>50</td><td>359</td><td>0.7645</td><td>0.4074</td><td>0.5185</td><td>0.4444</td></tr><tr><th scope="row">7</th><td>C6</td><td>500</td><td>100</td><td>398</td><td>0.7876</td><td>0.3704</td><td>0.5185</td><td>0.537</td></tr><tr><th scope="row">8</th><td>C7</td><td>700</td><td>0</td><td>242</td><td>0.5205</td><td>0.4815</td><td>0.8889</td><td>0.6296</td></tr><tr><th scope="row">9</th><td>C8</td><td>700</td><td>70</td><td>269</td><td>0.8024</td><td>0.4444</td><td>0.7778</td><td>0.7037</td></tr><tr><th scope="row">10</th><td>C9</td><td>700</td><td>140</td><td>295</td><td>1.5086</td><td>0.4444</td><td>0.6852</td><td>0.6481</td></tr><tr><th scope="row">11</th><td>C10</td><td>1000</td><td>0</td><td>180</td><td>0.9015</td><td>0.4444</td><td>0.7778</td><td>0.7037</td></tr><tr><th scope="row">12</th><td>C11</td><td>1000</td><td>100</td><td>199</td><td>1.2223</td><td>0.5185</td><td>0.7778</td><td>0.6481</td></tr><tr><th scope="row">13</th><td>C12</td><td>1000</td><td>200</td><td>217</td><td>1.185</td><td>0.5556</td><td>0.9444</td><td>0.6852</td></tr></tbody>
+    </table>
+  </body>
+</html>
